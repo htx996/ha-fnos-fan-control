@@ -2,6 +2,8 @@
 
 > 此集成支持在Home Assistant中监控和控制飞牛NAS设备
 
+[![Open your Home Assistant instance and open this repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=htx996&repository=ha-fnos-fan-control&category=integration)
+
 ## 📊 功能列表
 
 *   ​**硬件监控**​
@@ -37,7 +39,7 @@
 1.  进入**HACS商店**​
 2.  添加自定义存储库：
 ```shell
-https://github.com/anxms/fn_nas
+https://github.com/htx996/ha-fnos-fan-control
 ```
 3.  搜索"飞牛NAS"，点击下载
 4.  ​**重启Home Assistant服务**
