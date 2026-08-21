@@ -40,7 +40,8 @@
           "data": {
             "ignore_disks": "忽略的磁盘设备(逗号分隔)",
             "fan_config_path": "风扇配置文件路径",
-            "ups_scan_interval": "UPS更新间隔(秒)"
+            "ups_scan_interval": "UPS更新间隔(秒)",
+            "enable_docker": "启用docker控制"
           }
         }
       }

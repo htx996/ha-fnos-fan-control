@@ -3,6 +3,8 @@ from homeassistant.const import Platform
 DOMAIN = "fn_nas"
 PLATFORMS = [
     Platform.SENSOR,
+    Platform.FAN,
+    Platform.SELECT,
     Platform.SWITCH,
     Platform.BUTTON
 ]
@@ -32,6 +34,9 @@ HDD_HEALTH = "health"
 HDD_STATUS = "status"
 SYSTEM_INFO = "system"
 FAN_SPEED = "fan_speed"
+FAN_RPM = "fan_rpm"
+FAN_PWM = "fan_pwm"
+FAN_CONTROL_MODE = "fan_control_mode"
 UPS_INFO = "ups_info" 
 
 ATTR_DISK_MODEL = "硬盘型号"

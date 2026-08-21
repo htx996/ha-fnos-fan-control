@@ -1,6 +1,6 @@
 {
   "name": "飞牛NAS",
-  "domains": ["sensor", "button", "switch"],
+  "domains": ["sensor", "fan", "select", "button", "switch"],
   "homeassistant": "2024.1.0",
   "render_readme": true,
   "zip_release": true,

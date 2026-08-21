@@ -6,7 +6,8 @@ from .const import (
     DOMAIN, HDD_TEMP, HDD_HEALTH, HDD_STATUS, SYSTEM_INFO, ICON_DISK, 
     ICON_TEMPERATURE, ICON_HEALTH, ATTR_DISK_MODEL, ATTR_SERIAL_NO,
     ATTR_POWER_ON_HOURS, ATTR_TOTAL_CAPACITY, ATTR_HEALTH_STATUS,
-    DEVICE_ID_NAS, DATA_UPDATE_COORDINATOR
+    DEVICE_ID_NAS, DATA_UPDATE_COORDINATOR, ICON_FAN, FAN_RPM,
+    FAN_PWM, FAN_CONTROL_MODE
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -113,6 +114,58 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             )
         )
         existing_ids.add(mobo_temp_uid)
+
+    # 添加风扇监控传感器
+    for fan in coordinator.data.get("fans", []):
+        fan_id = fan["id"]
+        fan_name = fan.get("name", "风扇")
+
+        rpm_uid = f"{config_entry.entry_id}_fan_{fan_id}_rpm"
+        if fan.get("rpm") is not None and rpm_uid not in existing_ids:
+            entities.append(
+                FanSensor(
+                    coordinator,
+                    fan_id,
+                    FAN_RPM,
+                    f"{fan_name} 转速",
+                    rpm_uid,
+                    "RPM",
+                    ICON_FAN,
+                    state_class=SensorStateClass.MEASUREMENT,
+                )
+            )
+            existing_ids.add(rpm_uid)
+
+        pwm_uid = f"{config_entry.entry_id}_fan_{fan_id}_pwm"
+        if fan.get("pwm_percent") is not None and pwm_uid not in existing_ids:
+            entities.append(
+                FanSensor(
+                    coordinator,
+                    fan_id,
+                    FAN_PWM,
+                    f"{fan_name} PWM",
+                    pwm_uid,
+                    "%",
+                    "mdi:fan-speed-3",
+                    state_class=SensorStateClass.MEASUREMENT,
+                )
+            )
+            existing_ids.add(pwm_uid)
+
+        mode_uid = f"{config_entry.entry_id}_fan_{fan_id}_mode_sensor"
+        if fan.get("control_mode") is not None and mode_uid not in existing_ids:
+            entities.append(
+                FanSensor(
+                    coordinator,
+                    fan_id,
+                    FAN_CONTROL_MODE,
+                    f"{fan_name} 控制状态",
+                    mode_uid,
+                    None,
+                    "mdi:tune",
+                )
+            )
+            existing_ids.add(mode_uid)
 
     # 添加虚拟机状态传感器
     if "vms" in coordinator.data:
@@ -460,6 +513,68 @@ class MoboTempSensor(CoordinatorEntity, SensorEntity):
         except (ValueError, TypeError) as e:
             _LOGGER.warning("主板温度解析失败: 原始值='%s', 错误: %s", temp_str, str(e))
             return None
+
+class FanSensor(CoordinatorEntity, SensorEntity):
+    def __init__(
+        self,
+        coordinator,
+        fan_id,
+        sensor_type,
+        name,
+        unique_id,
+        unit,
+        icon,
+        state_class=None,
+    ):
+        super().__init__(coordinator)
+        self.fan_id = fan_id
+        self.sensor_type = sensor_type
+        self._attr_name = name
+        self._attr_unique_id = unique_id
+        self._attr_native_unit_of_measurement = unit
+        self._attr_icon = icon
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
+            "name": "飞牛NAS系统监控",
+            "manufacturer": "飞牛",
+            "model": "飞牛NAS",
+        }
+        if state_class:
+            self._attr_state_class = state_class
+
+    @property
+    def _fan_data(self):
+        for fan in self.coordinator.data.get("fans", []):
+            if fan.get("id") == self.fan_id:
+                return fan
+        return None
+
+    @property
+    def native_value(self):
+        fan = self._fan_data
+        if not fan:
+            return None
+
+        if self.sensor_type == FAN_RPM:
+            return fan.get("rpm")
+        if self.sensor_type == FAN_PWM:
+            return fan.get("pwm_percent")
+        if self.sensor_type == FAN_CONTROL_MODE:
+            return fan.get("control_mode")
+        return None
+
+    @property
+    def extra_state_attributes(self):
+        fan = self._fan_data or {}
+        return {
+            "风扇ID": self.fan_id,
+            "芯片": fan.get("chip"),
+            "hwmon路径": fan.get("hwmon_path"),
+            "PWM原始值": fan.get("pwm_raw"),
+            "PWM enable": fan.get("pwm_enable"),
+            "PWM控制支持": fan.get("supports_pwm", False),
+            "模式控制支持": fan.get("supports_modes", False),
+        }
 
 class UPSSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, name, unique_id, unit, icon, data_key, device_class=None, state_class=None):

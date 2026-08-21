@@ -17,6 +17,7 @@ from .system_manager import SystemManager
 from .ups_manager import UPSManager
 from .vm_manager import VMManager
 from .docker_manager import DockerManager
+from .fan_manager import FanManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class FlynasCoordinator(DataUpdateCoordinator):
         self.ssh_pool_lock = asyncio.Lock()
         self.ups_manager = UPSManager(self)
         self.vm_manager = VMManager(self)
+        self.fan_manager = FanManager(self)
         self.use_sudo = False
         
         # 确保data始终有初始值
@@ -79,7 +81,8 @@ class FlynasCoordinator(DataUpdateCoordinator):
             },
             "ups": {},
             "vms": [],
-            "docker_containers": []
+            "docker_containers": [],
+            "fans": []
         }
     
     def _debug_log(self, message: str):
@@ -388,6 +391,10 @@ class FlynasCoordinator(DataUpdateCoordinator):
             self._debug_log("开始获取UPS信息...")
             ups_info = await self.ups_manager.get_ups_info()
             self._debug_log("UPS信息获取完成")
+
+            self._debug_log("开始获取风扇信息...")
+            fans = await self.fan_manager.get_fans_info()
+            self._debug_log(f"风扇信息获取完成，数量: {len(fans)}")
             
             self._debug_log("开始获取虚拟机信息...")
             vms = await self.vm_manager.get_vm_list()
@@ -416,10 +423,11 @@ class FlynasCoordinator(DataUpdateCoordinator):
                 "system": {**system, "status": status},
                 "ups": ups_info,
                 "vms": vms,
-                "docker_containers": docker_containers
+                "docker_containers": docker_containers,
+                "fans": fans
             }
             
-            self._debug_log(f"数据更新完成: disks={len(disks)}, vms={len(vms)}, containers={len(docker_containers)}")
+            self._debug_log(f"数据更新完成: disks={len(disks)}, fans={len(fans)}, vms={len(vms)}, containers={len(docker_containers)}")
             return data
         
         except Exception as e:
