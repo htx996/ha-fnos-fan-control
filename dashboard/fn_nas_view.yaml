@@ -4,16 +4,19 @@ icon: mdi:nas
 type: sections
 max_columns: 2
 dense_section_placement: true
-background: "#11181c"
+background: "#0c1114"
 card_mod:
   style: |
     :host {
-      --primary-background-color: #11181c;
-      --secondary-background-color: #11181c;
+      --primary-background-color: #0c1114;
+      --secondary-background-color: #0c1114;
       --card-background-color: transparent;
       --ha-card-background: transparent;
-      --primary-text-color: #f4f7f8;
-      --secondary-text-color: #aebbc2;
+      --primary-text-color: #f5f5f7;
+      --secondary-text-color: #a7adb4;
+      --ha-card-border-radius: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
+      letter-spacing: 0;
     }
 sections:
   - type: grid
@@ -25,9 +28,12 @@ sections:
         card_mod:
           style: |
             :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
+              color: #f5f5f7;
+              --primary-text-color: #f5f5f7;
+              --secondary-text-color: #a7adb4;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+              padding-bottom: 6px;
+              letter-spacing: 0;
             }
         grid_options:
           columns: 12
@@ -47,10 +53,10 @@ sections:
                 ha-card {
                   height: 100%;
                   overflow: hidden;
-                  border-radius: 0;
-                  border: none;
-                  background: transparent;
-                  box-shadow: none;
+                  border-radius: 8px;
+                  border: 1px solid rgba(255, 255, 255, 0.055);
+                  background: rgba(255, 255, 255, 0.018);
+                  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
                 }
                 ha-card img {
                   width: 100% !important;
@@ -101,8 +107,8 @@ sections:
             }
             #root > *:nth-child(2) {
               position: absolute;
-              top: 12px;
-              right: 12px;
+              top: -60px;
+              right: 0;
               width: 96px;
               z-index: 2;
             }
@@ -140,9 +146,12 @@ sections:
         card_mod:
           style: |
             :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
+              color: #f5f5f7;
+              --primary-text-color: #f5f5f7;
+              --secondary-text-color: #a7adb4;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+              padding-bottom: 6px;
+              letter-spacing: 0;
             }
         grid_options:
           columns: 12
@@ -156,15 +165,17 @@ sections:
           card_mod:
             style: |
               ha-card {
-                background: transparent;
-                border: none;
-                box-shadow: none;
-                color: #f4f7f8;
-                --primary-text-color: #f4f7f8;
-                --secondary-text-color: #aebbc2;
+                background: rgba(255, 255, 255, 0.045);
+                border: 1px solid rgba(255, 255, 255, 0.07);
+                border-radius: 8px;
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 8px 24px rgba(0, 0, 0, 0.08);
+                backdrop-filter: blur(18px) saturate(130%);
+                color: #f5f5f7;
+                --primary-text-color: #f5f5f7;
+                --secondary-text-color: #a7adb4;
               }
               #states {
-                padding: 0 8px !important;
+                padding: 2px 10px !important;
               }
         card_param: entities
         filter:
@@ -187,9 +198,10 @@ sections:
         card_mod:
           style: |
             :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
+              color: #c8cdd2;
+              --primary-text-color: #c8cdd2;
+              --secondary-text-color: #9098a0;
+              letter-spacing: 0;
             }
         grid_options:
           columns: 12
@@ -225,9 +237,12 @@ sections:
         card_mod:
           style: |
             :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
+              color: #f5f5f7;
+              --primary-text-color: #f5f5f7;
+              --secondary-text-color: #a7adb4;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+              padding-bottom: 6px;
+              letter-spacing: 0;
             }
         grid_options:
           columns: 12
@@ -256,13 +271,14 @@ sections:
           card_mod:
             style: |
               ha-card {
-                border-radius: 0;
-                background: transparent;
-                border: none;
-                box-shadow: none;
-                color: #f4f7f8;
-                --primary-text-color: #f4f7f8;
-                --secondary-text-color: #aebbc2;
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.035);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+                backdrop-filter: blur(16px) saturate(125%);
+                color: #f5f5f7;
+                --primary-text-color: #f5f5f7;
+                --secondary-text-color: #a7adb4;
               }
         card_param: entities
         filter:
@@ -295,13 +311,14 @@ sections:
           card_mod:
             style: |
               ha-card {
-                border-radius: 0;
-                background: transparent;
-                border: none;
-                box-shadow: none;
-                color: #f4f7f8;
-                --primary-text-color: #f4f7f8;
-                --secondary-text-color: #aebbc2;
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.035);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+                backdrop-filter: blur(16px) saturate(125%);
+                color: #f5f5f7;
+                --primary-text-color: #f5f5f7;
+                --secondary-text-color: #a7adb4;
               }
         card_param: entities
         filter:
@@ -318,9 +335,10 @@ sections:
         card_mod:
           style: |
             :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
+              color: #c8cdd2;
+              --primary-text-color: #c8cdd2;
+              --secondary-text-color: #9098a0;
+              letter-spacing: 0;
             }
         grid_options:
           columns: 12
@@ -356,9 +374,12 @@ sections:
         card_mod:
           style: |
             :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
+              color: #f5f5f7;
+              --primary-text-color: #f5f5f7;
+              --secondary-text-color: #a7adb4;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+              padding-bottom: 6px;
+              letter-spacing: 0;
             }
         grid_options:
           columns: 12
@@ -371,9 +392,10 @@ sections:
         card_mod:
           style: |
             :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
+              color: #c8cdd2;
+              --primary-text-color: #c8cdd2;
+              --secondary-text-color: #9098a0;
+              letter-spacing: 0;
             }
         grid_options:
           columns: 12
@@ -406,9 +428,10 @@ sections:
         card_mod:
           style: |
             :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
+              color: #c8cdd2;
+              --primary-text-color: #c8cdd2;
+              --secondary-text-color: #9098a0;
+              letter-spacing: 0;
             }
         grid_options:
           columns: 12
@@ -442,9 +465,10 @@ sections:
         card_mod:
           style: |
             :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
+              color: #c8cdd2;
+              --primary-text-color: #c8cdd2;
+              --secondary-text-color: #9098a0;
+              letter-spacing: 0;
             }
         grid_options:
           columns: 12
