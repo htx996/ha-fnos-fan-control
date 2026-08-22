@@ -377,3 +377,35 @@ button_card_templates:
           - display: none
       state:
         - font-size: 16px
+
+  fn_nas_image_action:
+    show_icon: true
+    show_name: false
+    show_state: false
+    hold_action:
+      action: none
+    styles:
+      card:
+        - width: 42px
+        - height: 42px
+        - padding: 0
+        - border-radius: 12px
+        - border: 1px solid rgba(239, 107, 104, 0.22)
+        - background: rgba(17, 24, 28, 0.82)
+        - box-shadow: 0 5px 16px rgba(0, 0, 0, 0.22)
+        - backdrop-filter: blur(8px)
+      grid:
+        - grid-template-areas: '"i"'
+        - grid-template-columns: 1fr
+        - grid-template-rows: 1fr
+      img_cell:
+        - width: 42px
+        - height: 42px
+      icon:
+        - width: 24px
+        - color: |
+            [[[
+              return entity.attributes.fn_nas_dashboard_role === 'power' && entity.state === 'on'
+                ? '#ef6b68'
+                : '#c55b5b';
+            ]]]

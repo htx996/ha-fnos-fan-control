@@ -33,32 +33,82 @@ sections:
           columns: 12
           rows: 1
 
-      - type: picture
-        image: /local/community/fn_nas/fn_nas.png
-        alt_text: 飞牛NAS
-        tap_action:
-          action: none
-        hold_action:
-          action: none
+      - type: vertical-stack
+        cards:
+          - type: picture
+            image: /local/community/fn_nas/fn_nas.png
+            alt_text: 飞牛NAS
+            tap_action:
+              action: none
+            hold_action:
+              action: none
+            card_mod:
+              style: |
+                ha-card {
+                  height: 100%;
+                  overflow: hidden;
+                  border-radius: 0;
+                  border: none;
+                  background: transparent;
+                  box-shadow: none;
+                }
+                ha-card img {
+                  width: 100% !important;
+                  height: 100% !important;
+                  object-fit: contain !important;
+                  object-position: center !important;
+                }
+          - type: custom:auto-entities
+            show_empty: false
+            card:
+              type: grid
+              columns: 2
+              square: false
+            card_param: cards
+            filter:
+              include:
+                - integration: fn_nas
+                  domain: switch
+                  attributes:
+                    fn_nas_dashboard_category: control
+                    fn_nas_dashboard_role: power
+                  options:
+                    type: custom:button-card
+                    template: fn_nas_image_action
+                    tap_action:
+                      action: more-info
+                - integration: fn_nas
+                  domain: button
+                  attributes:
+                    fn_nas_dashboard_category: control
+                    fn_nas_dashboard_role: reboot
+                  options:
+                    type: custom:button-card
+                    template: fn_nas_image_action
+                    tap_action:
+                      action: more-info
+            sort:
+              method: attribute
+              attribute: fn_nas_dashboard_order
+              numeric: true
+        card_mod:
+          style: |
+            :host {
+              position: relative;
+            }
+            #root {
+              position: relative;
+            }
+            #root > *:nth-child(2) {
+              position: absolute;
+              top: 12px;
+              right: 12px;
+              width: 96px;
+              z-index: 2;
+            }
         grid_options:
           columns: 12
           rows: 4
-        card_mod:
-          style: |
-            ha-card {
-              height: 100%;
-              overflow: hidden;
-              border-radius: 0;
-              border: none;
-              background: transparent;
-              box-shadow: none;
-            }
-            ha-card img {
-              width: 100% !important;
-              height: 100% !important;
-              object-fit: contain !important;
-              object-position: center !important;
-            }
 
       - type: custom:auto-entities
         show_empty: false
@@ -125,38 +175,6 @@ sections:
                 fn_nas_dashboard_category: control
               options:
                 name: 风扇控制模式
-        sort:
-          method: attribute
-          attribute: fn_nas_dashboard_order
-          numeric: true
-
-      - type: custom:auto-entities
-        show_empty: false
-        card:
-          type: grid
-          columns: 2
-          square: false
-        card_param: cards
-        filter:
-          include:
-            - integration: fn_nas
-              domain: switch
-              attributes:
-                fn_nas_dashboard_category: control
-              options:
-                type: custom:button-card
-                template: fn_nas_control
-                tap_action:
-                  action: more-info
-            - integration: fn_nas
-              domain: button
-              attributes:
-                fn_nas_dashboard_category: control
-              options:
-                type: custom:button-card
-                template: fn_nas_control
-                tap_action:
-                  action: more-info
         sort:
           method: attribute
           attribute: fn_nas_dashboard_order
