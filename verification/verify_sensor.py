@@ -338,3 +338,33 @@ class FanDiscoverySensorVerifications(VerifyCase):
         self.assertFalse(entity.extra_state_attributes["风扇控制应用"]["installed"])
         self.assertEqual(entity.extra_state_attributes["LLLED风扇后端"]["mode"], "自动")
         self.assertEqual(entity.extra_state_attributes["诊断工具"], {"sensors-detect": True})
+
+    def verify_os_version_sensor_exposes_release_and_kernel(self):
+        with patch_modules(sys.modules, _install_stubs()):
+            spec = importlib.util.spec_from_file_location(
+                "custom_components.fn_nas.sensor",
+                SENSOR_PATH,
+            )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["custom_components.fn_nas.sensor"] = module
+            spec.loader.exec_module(module)
+
+            coordinator = types.SimpleNamespace(
+                data={
+                    "system": {
+                        "status": "on",
+                        "operating_system": "Debian GNU/Linux 12 (bookworm)",
+                        "os_version": "12",
+                        "kernel_version": "6.18.18.c952-trim",
+                    }
+                }
+            )
+            entity = module.OSVersionSensor(coordinator, "entry-1_os_version")
+
+        self.assertEqual(entity.native_value, "Debian GNU/Linux 12 (bookworm)")
+        self.assertEqual(entity.extra_state_attributes["版本"], "12")
+        self.assertEqual(
+            entity.extra_state_attributes["内核版本"],
+            "6.18.18.c952-trim",
+        )
+        self.assertEqual(entity.extra_state_attributes["fn_nas_dashboard_role"], "os_version")

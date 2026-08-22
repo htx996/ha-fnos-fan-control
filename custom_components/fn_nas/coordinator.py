@@ -74,6 +74,9 @@ class FlynasCoordinator(DataUpdateCoordinator):
             "disks": [],
             "system": {
                 "uptime": "未知",
+                "operating_system": "未知",
+                "os_version": "未知",
+                "kernel_version": "未知",
                 "cpu_temperature": "未知",
                 "motherboard_temperature": "未知",
                 "status": "off"

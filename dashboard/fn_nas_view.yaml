@@ -3,6 +3,17 @@ path: fn-nas
 icon: mdi:nas
 type: sections
 max_columns: 3
+background: "#11181c"
+card_mod:
+  style: |
+    :host {
+      --primary-background-color: #11181c;
+      --secondary-background-color: #11181c;
+      --card-background-color: transparent;
+      --ha-card-background: transparent;
+      --primary-text-color: #f4f7f8;
+      --secondary-text-color: #aebbc2;
+    }
 sections:
   - type: grid
     cards:
@@ -10,6 +21,13 @@ sections:
         heading: 系统概览
         heading_style: title
         icon: mdi:view-dashboard-outline
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
         grid_options:
           columns: 12
           rows: 1
@@ -28,9 +46,9 @@ sections:
           style: |
             ha-card {
               overflow: hidden;
-              border-radius: 6px;
-              border: 1px solid rgba(255, 255, 255, 0.12);
-              background: #11181c;
+              border-radius: 0;
+              border: none;
+              background: transparent;
               box-shadow: none;
             }
 
@@ -59,6 +77,13 @@ sections:
         heading: 温度趋势
         heading_style: subtitle
         icon: mdi:chart-line
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
         grid_options:
           columns: 12
           rows: 1
@@ -85,9 +110,9 @@ sections:
           card_mod:
             style: |
               ha-card {
-                border-radius: 6px;
-                background: #182126;
-                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 0;
+                background: transparent;
+                border: none;
                 box-shadow: none;
                 color: #f4f7f8;
                 --primary-text-color: #f4f7f8;
@@ -123,9 +148,9 @@ sections:
           card_mod:
             style: |
               ha-card {
-                border-radius: 6px;
-                background: #182126;
-                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 0;
+                background: transparent;
+                border: none;
                 box-shadow: none;
                 color: #f4f7f8;
                 --primary-text-color: #f4f7f8;
@@ -145,6 +170,13 @@ sections:
         heading: 存储详情
         heading_style: title
         icon: mdi:database-outline
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
         grid_options:
           columns: 12
           rows: 1
@@ -173,6 +205,13 @@ sections:
         heading: 硬盘
         heading_style: subtitle
         icon: mdi:harddisk
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
         grid_options:
           columns: 12
           rows: 1
@@ -201,6 +240,13 @@ sections:
         heading: UPS
         heading_style: subtitle
         icon: mdi:battery-charging-medium
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
         grid_options:
           columns: 12
           rows: 1
@@ -232,6 +278,13 @@ sections:
         heading: 控制
         heading_style: title
         icon: mdi:tune-variant
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
         grid_options:
           columns: 12
           rows: 1
@@ -262,6 +315,13 @@ sections:
         heading: 风扇
         heading_style: subtitle
         icon: mdi:fan
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
         grid_options:
           columns: 12
           rows: 1
@@ -290,6 +350,13 @@ sections:
         heading: 虚拟机
         heading_style: subtitle
         icon: mdi:server
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
         grid_options:
           columns: 12
           rows: 1
@@ -319,6 +386,13 @@ sections:
         heading: Docker
         heading_style: subtitle
         icon: mdi:docker
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
         grid_options:
           columns: 12
           rows: 1

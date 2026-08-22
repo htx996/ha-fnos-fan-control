@@ -111,6 +111,9 @@ class DashboardVerifications(VerifyCase):
         self.assertIn("custom:auto-entities", view)
         self.assertIn("custom:mini-graph-card", view)
         self.assertEqual(view.count("card_param: entities"), 2)
+        self.assertIn('background: "#11181c"', view)
+        self.assertIn("background: transparent", view)
+        self.assertIn("- border: none", templates)
         self.assertIn("custom:button-card", view)
         self.assertIn("card_mod:", view)
         for category in ("system", "storage", "disk", "fan", "ups", "vm", "docker", "control"):

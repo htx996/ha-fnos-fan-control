@@ -88,6 +88,11 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             )
         )
         existing_ids.add(system_uid)
+
+    os_version_uid = f"{config_entry.entry_id}_os_version"
+    if os_version_uid not in existing_ids:
+        entities.append(OSVersionSensor(coordinator, os_version_uid))
+        existing_ids.add(os_version_uid)
     
     # 添加CPU温度传感器
     cpu_temp_uid = f"{config_entry.entry_id}_cpu_temperature"
@@ -464,6 +469,37 @@ class SystemSensor(CoordinatorEntity, SensorEntity):
             "主机地址": self.coordinator.host,
             "CPU温度": system_data.get("cpu_temperature", "未知"),
             "主板温度": system_data.get("motherboard_temperature", "未知")
+        }
+
+
+class OSVersionSensor(CoordinatorEntity, SensorEntity):
+    def __init__(self, coordinator, unique_id):
+        super().__init__(coordinator)
+        self._attr_name = "操作系统版本"
+        self._attr_unique_id = unique_id
+        self._attr_icon = "mdi:linux"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
+            "name": "飞牛NAS系统监控",
+            "manufacturer": "飞牛",
+        }
+        self._dashboard_attributes = dashboard_metadata("system", "os_version", 15)
+
+    @property
+    def native_value(self):
+        system_data = self.coordinator.data.get("system", {})
+        if system_data.get("status") == "off":
+            return None
+        value = system_data.get("operating_system", "未知")
+        return None if value == "未知" else value
+
+    @property
+    def extra_state_attributes(self):
+        system_data = self.coordinator.data.get("system", {})
+        return {
+            **self._dashboard_attributes,
+            "版本": system_data.get("os_version", "未知"),
+            "内核版本": system_data.get("kernel_version", "未知"),
         }
 
 class CPUTempSensor(CoordinatorEntity, SensorEntity):

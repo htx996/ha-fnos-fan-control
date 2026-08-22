@@ -11,9 +11,9 @@ button_card_templates:
       card:
         - min-height: 112px
         - padding: 14px
-        - border-radius: 6px
-        - background: "#182126"
-        - border: 1px solid rgba(255, 255, 255, 0.12)
+        - border-radius: 0
+        - background: transparent
+        - border: none
         - box-shadow: none
         - grid-template-areas: '"i n" "i s"'
         - grid-template-columns: 42px 1fr

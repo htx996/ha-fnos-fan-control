@@ -21,6 +21,7 @@ class SystemManager:
             "temp_id": None,
             "label": None
         }
+        self.os_info_cache = None
 
     def _debug_log(self, message: str):
         """输出由 Home Assistant 日志级别控制的详细日志。"""
@@ -56,6 +57,8 @@ class SystemManager:
                 system_info["uptime_seconds"] = 0
                 system_info["uptime"] = "未知"
 
+            system_info.update(await self.get_os_info())
+
             # 一次性获取CPU和主板温度
             temps = await self.get_temperatures_from_sensors()
             system_info["cpu_temperature"] = temps["cpu"]
@@ -72,6 +75,9 @@ class SystemManager:
             return {
                 "uptime_seconds": 0,
                 "uptime": "未知",
+                "operating_system": "未知",
+                "os_version": "未知",
+                "kernel_version": "未知",
                 "cpu_temperature": "未知",
                 "motherboard_temperature": "未知",
                 "memory_total": "未知",
@@ -79,6 +85,51 @@ class SystemManager:
                 "memory_available": "未知",
                 "volumes": {}
             }
+
+    async def get_os_info(self) -> dict:
+        """Read static operating-system details once per integration load."""
+        if self.os_info_cache is not None:
+            return dict(self.os_info_cache)
+
+        output = await self.coordinator.run_command(
+            "cat /etc/os-release 2>/dev/null || true; "
+            "printf '\\n__FN_NAS_KERNEL__=%s\\n' \"$(uname -r 2>/dev/null)\""
+        )
+        os_info = self.parse_os_info(output)
+        if any(value != "未知" for value in os_info.values()):
+            self.os_info_cache = os_info
+        return dict(os_info)
+
+    @staticmethod
+    def parse_os_info(output: str) -> dict:
+        """Parse /etc/os-release plus the appended kernel marker."""
+        fields = {}
+        kernel_version = "未知"
+
+        for raw_line in (output or "").splitlines():
+            line = raw_line.strip()
+            if line.startswith("__FN_NAS_KERNEL__="):
+                kernel_version = line.split("=", 1)[1].strip() or "未知"
+                continue
+            if "=" not in line or line.startswith("#"):
+                continue
+            key, value = line.split("=", 1)
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+                value = value[1:-1]
+            fields[key] = value
+
+        os_name = fields.get("PRETTY_NAME")
+        if not os_name:
+            os_name = " ".join(
+                part for part in (fields.get("NAME"), fields.get("VERSION_ID")) if part
+            )
+
+        return {
+            "operating_system": os_name or "未知",
+            "os_version": fields.get("VERSION_ID") or fields.get("VERSION") or "未知",
+            "kernel_version": kernel_version,
+        }
 
     async def get_temperatures_from_sensors(self) -> dict:
         """一次性获取CPU和主板温度"""
