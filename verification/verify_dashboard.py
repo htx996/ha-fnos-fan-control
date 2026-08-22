@@ -120,6 +120,24 @@ class DashboardVerifications(VerifyCase):
             self.assertIn(f"fn_nas_dashboard_category: {category}", view)
         self.assertIn("fn_nas_metric", templates)
 
+    def verify_dashboard_uses_graphical_storage_disk_and_fan_views(self):
+        view = DASHBOARD_VIEW_PATH.read_text(encoding="utf-8")
+        templates = DASHBOARD_TEMPLATE_PATH.read_text(encoding="utf-8")
+
+        for template in ("fn_nas_volume", "fn_nas_disk", "fn_nas_fan"):
+            self.assertIn(template, templates)
+            self.assertIn(f"template: {template}", view)
+
+        self.assertIn("fn_nas_dashboard_role: temperature", view)
+        self.assertIn("fn_nas_dashboard_role: rpm", view)
+        self.assertIn("max_columns: 2", view)
+        self.assertIn("type: fan-speed", view)
+        self.assertIn("type: select-options", view)
+        self.assertIn("conic-gradient", templates)
+        self.assertIn("@keyframes fn-nas-spin", templates)
+        self.assertIn("使用率", templates)
+        self.assertIn("PWM百分比", templates)
+
     def verify_readme_documents_manual_dashboard_installation(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
 

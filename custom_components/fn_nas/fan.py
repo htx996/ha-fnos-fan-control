@@ -42,7 +42,7 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
         self.fan_id = fan_info["id"]
         self.fan_channel = infer_fan_channel(fan_info)
         self.entity_fan_id = stable_fan_id(fan_info)
-        self._attr_name = f"{fan_info['name']} 控制"
+        self._attr_name = fan_info["name"]
         self._attr_unique_id = f"{entry_id}_fan_{self.entity_fan_id}"
         self._dashboard_attributes = dashboard_metadata("control", "fan", 20)
         self._attr_icon = "mdi:fan"

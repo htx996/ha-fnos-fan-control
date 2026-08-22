@@ -215,6 +215,7 @@ class FanDiscoverySensorVerifications(VerifyCase):
                             "channel": "cpu",
                             "rpm": 2070,
                             "pwm_percent": 50,
+                            "control_mode": "自动",
                         }
                     ]
                 }
@@ -239,6 +240,9 @@ class FanDiscoverySensorVerifications(VerifyCase):
             entity.extra_state_attributes["fn_nas_dashboard_role"],
             "rpm",
         )
+        self.assertEqual(entity.extra_state_attributes["风扇名称"], "CPU 风扇")
+        self.assertEqual(entity.extra_state_attributes["PWM百分比"], 50)
+        self.assertEqual(entity.extra_state_attributes["控制模式"], "自动")
 
     def verify_fan_sensor_follows_channel_when_llled_id_becomes_hwmon_id(self):
         with patch_modules(sys.modules, _install_stubs()):

@@ -7,65 +7,364 @@ button_card_templates:
       action: more-info
     hold_action:
       action: none
+    name: |
+      [[[
+        const category = entity.attributes.fn_nas_dashboard_category;
+        const labels = {
+          status: category === 'ups' ? 'UPS 状态' : '运行时间', device_name: '设备名称', os_version: '系统版本',
+          cpu_temperature: 'CPU 温度', motherboard_temperature: '主板温度',
+          memory_available: '可用内存', battery_level: 'UPS 电量',
+          runtime_remaining: 'UPS 续航', output_voltage: '输出电压',
+          load_percent: 'UPS 负载', input_voltage: '输入电压', model: 'UPS 型号'
+        };
+        const role = entity.attributes.fn_nas_dashboard_role;
+        if (labels[role]) return labels[role];
+        return (entity.attributes.friendly_name || entity.entity_id)
+          .replace(/^飞牛NAS系统监控?\s*/, '').replace(/^飞牛NAS\s*/, '');
+      ]]]
+    custom_fields:
+      meter: |
+        [[[
+          const role = entity.attributes.fn_nas_dashboard_role;
+          let percent = null;
+          let color = '#44c7d9';
+          if (role === 'cpu_temperature' || role === 'motherboard_temperature') {
+            percent = Math.min(100, Math.max(0, Number(entity.state) / 80 * 100));
+            color = Number(entity.state) >= 70 ? '#ef6b68' : Number(entity.state) >= 55 ? '#e7c64f' : '#44c7d9';
+          } else if (role === 'memory_available') {
+            const total = Number(entity.attributes['总内存 (GB)']);
+            const used = Number(entity.attributes['已用内存 (GB)']);
+            percent = total > 0 ? Math.min(100, Math.max(0, used / total * 100)) : null;
+            color = '#3bc48d';
+          } else if (role === 'battery_level' || role === 'load_percentage') {
+            percent = Math.min(100, Math.max(0, Number(entity.state)));
+            color = role === 'battery_level' ? '#e7c64f' : '#77a9ff';
+          }
+          if (percent === null || Number.isNaN(percent)) return '';
+          return `<div class="fn-track"><span style="width:${percent}%;background:${color}"></span></div>`;
+        ]]]
     styles:
       card:
-        - min-height: 112px
-        - padding: 14px
+        - min-height: 108px
+        - padding: 14px 12px
         - border-radius: 0
         - background: transparent
         - border: none
         - box-shadow: none
-        - grid-template-areas: '"i n" "i s"'
-        - grid-template-columns: 42px 1fr
-        - grid-template-rows: 1fr 1fr
+      grid:
+        - grid-template-areas: '"i n" "i s" "meter meter"'
+        - grid-template-columns: 44px 1fr
+        - grid-template-rows: 22px 36px 12px
+        - column-gap: 10px
+      img_cell:
+        - width: 40px
+        - height: 40px
+        - border-radius: 12px
+        - background: rgba(68, 199, 217, 0.10)
       icon:
-        - width: 28px
+        - width: 25px
         - color: |
             [[[
-              const colors = {
-                system: '#44c7d9',
-                storage: '#3bc48d',
-                disk: '#8bd450',
-                fan: '#f0a34a',
-                ups: '#e7c64f',
-                vm: '#77a9ff',
-                docker: '#49b9e8',
-                control: '#ef6b68'
-              };
+              const colors = {system: '#44c7d9', storage: '#3bc48d', disk: '#8bd450', fan: '#f0a34a', ups: '#e7c64f', vm: '#77a9ff', docker: '#49b9e8', control: '#ef6b68'};
               return colors[entity.attributes.fn_nas_dashboard_category] || '#aebbc2';
             ]]]
       name:
         - justify-self: start
         - align-self: end
-        - color: "#aebbc2"
-        - font-size: 13px
+        - color: "#8fa1aa"
+        - font-size: 12px
+        - line-height: 16px
         - white-space: normal
         - text-align: left
       state:
         - justify-self: start
         - align-self: start
         - color: "#f5f7f8"
-        - font-size: 20px
-        - font-weight: 600
-        - white-space: normal
+        - font-size: |
+            [[[
+              const role = entity.attributes.fn_nas_dashboard_role;
+              return ['status', 'os_version'].includes(role) ? '17px' : '20px';
+            ]]]
+        - font-weight: 650
+        - line-height: 28px
+        - white-space: nowrap
+        - overflow: hidden
+        - text-overflow: ellipsis
         - text-align: left
+      custom_fields:
+        meter:
+          - align-self: end
+          - width: 100%
+    extra_styles: |
+      .fn-track { width: 100%; height: 4px; overflow: hidden; border-radius: 2px; background: rgba(174, 187, 194, 0.14); }
+      .fn-track > span { display: block; height: 100%; border-radius: 2px; }
     state:
       - value: unavailable
         styles:
           card:
-            - opacity: 0.55
+            - opacity: 0.48
       - value: unknown
         styles:
           card:
-            - opacity: 0.7
+            - opacity: 0.62
+
+  fn_nas_volume:
+    show_icon: true
+    show_name: true
+    show_state: true
+    tap_action:
+      action: more-info
+    hold_action:
+      action: none
+    name: |
+      [[[
+        const mount = entity.attributes['挂载点'] || '存储卷';
+        return `${mount} 存储卷`;
+      ]]]
+    state_display: |
+      [[[
+        const unit = entity.attributes.unit_of_measurement || '';
+        return `${entity.state} ${unit}`.trim();
+      ]]]
+    custom_fields:
+      usage: |
+        [[[
+          const raw = String(entity.attributes['使用率'] || '0');
+          const percent = Math.min(100, Math.max(0, Number.parseFloat(raw) || 0));
+          const used = entity.attributes['已用容量'] || '未知';
+          const total = entity.attributes['总容量'] || '未知';
+          return `<div class="fn-volume-meta"><span>已用 ${percent}%</span><span>${used} / ${total}</span></div><div class="fn-volume-track"><span style="width:${percent}%"></span></div>`;
+        ]]]
+    styles:
+      card:
+        - min-height: 132px
+        - padding: 16px
+        - border-radius: 0
+        - background: transparent
+        - border: none
+        - box-shadow: none
+      grid:
+        - grid-template-areas: '"i n" "i s" "usage usage"'
+        - grid-template-columns: 52px 1fr
+        - grid-template-rows: 24px 38px 42px
+        - column-gap: 12px
+      img_cell:
+        - width: 48px
+        - height: 48px
+        - border-radius: 50%
+        - background: rgba(59, 196, 141, 0.12)
+      icon:
+        - width: 28px
+        - color: "#3bc48d"
+      name:
+        - justify-self: start
+        - color: "#aebbc2"
+        - font-size: 13px
+      state:
+        - justify-self: start
+        - color: "#f5f7f8"
+        - font-size: 19px
+        - font-weight: 650
+      custom_fields:
+        usage:
+          - width: 100%
+          - align-self: end
+    extra_styles: |
+      .fn-volume-meta { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 7px; color: #8fa1aa; font-size: 11px; }
+      .fn-volume-track { width: 100%; height: 8px; overflow: hidden; border-radius: 4px; background: rgba(174, 187, 194, 0.14); }
+      .fn-volume-track > span { display: block; height: 100%; border-radius: 4px; background: #3bc48d; }
+
+  fn_nas_disk:
+    show_icon: true
+    show_name: true
+    show_state: true
+    tap_action:
+      action: more-info
+    hold_action:
+      action: none
+    name: |
+      [[[
+        return entity.attributes['硬盘型号'] || '硬盘';
+      ]]]
+    state_display: |
+      [[[
+        const unit = entity.attributes.unit_of_measurement || '°C';
+        return `${entity.state} ${unit}`;
+      ]]]
+    custom_fields:
+      details: |
+        [[[
+          const rawCapacity = entity.attributes['总容量'];
+          let capacity = rawCapacity || '容量未知';
+          const capacityText = String(rawCapacity || '');
+          const bytes = capacityText.includes('bytes')
+            ? Number(capacityText.replace(/[^\d.]/g, ''))
+            : Number.NaN;
+          if (Number.isFinite(bytes) && bytes > 0) {
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+            capacity = `${(bytes / Math.pow(1024, index)).toFixed(index >= 3 ? 1 : 0)} ${units[index]}`;
+          }
+          const status = entity.attributes['状态'] || '状态未知';
+          return `${capacity} · ${status}`;
+        ]]]
+      health: |
+        [[[
+          const health = entity.attributes['健康状态'] || '未知';
+          const ok = ['良好', '正常', '健康'].includes(health);
+          const color = ok ? '#8bd450' : health === '未知' ? '#8fa1aa' : '#ef6b68';
+          return `<span class="fn-health-dot" style="background:${color}"></span>${health}`;
+        ]]]
+    styles:
+      card:
+        - min-height: 142px
+        - padding: 16px 12px
+        - border-radius: 0
+        - background: transparent
+        - border: none
+        - box-shadow: none
+      grid:
+        - grid-template-areas: '"i n" "i s" "details details" "health health"'
+        - grid-template-columns: 66px 1fr
+        - grid-template-rows: 28px 34px 24px 24px
+        - column-gap: 12px
+      img_cell:
+        - width: 58px
+        - height: 58px
+        - border-radius: 50%
+        - background: |
+            [[[
+              const temp = Math.min(80, Math.max(0, Number(entity.state) || 0));
+              const angle = temp / 80 * 360;
+              const color = temp >= 60 ? '#ef6b68' : temp >= 48 ? '#e7c64f' : '#8bd450';
+              return `conic-gradient(${color} 0deg ${angle}deg, rgba(174,187,194,0.12) ${angle}deg 360deg)`;
+            ]]]
+        - box-shadow: inset 0 0 0 6px #11181c
+      icon:
+        - width: 28px
+        - color: "#dce6ea"
+      name:
+        - justify-self: start
+        - align-self: end
+        - color: "#cbd5da"
+        - font-size: 13px
+        - font-weight: 500
+        - line-height: 17px
+        - white-space: normal
+        - text-align: left
+      state:
+        - justify-self: start
+        - color: "#f5f7f8"
+        - font-size: 23px
+        - font-weight: 650
+      custom_fields:
+        details:
+          - justify-self: start
+          - color: "#778b95"
+          - font-size: 11px
+        health:
+          - justify-self: start
+          - color: "#aebbc2"
+          - font-size: 12px
+    extra_styles: |
+      .fn-health-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
+
+  fn_nas_fan:
+    show_icon: true
+    show_name: true
+    show_state: true
+    tap_action:
+      action: more-info
+    hold_action:
+      action: none
+    name: |
+      [[[
+        return entity.attributes['风扇名称'] || '风扇';
+      ]]]
+    state_display: |
+      [[[
+        return `${entity.state} RPM`;
+      ]]]
+    custom_fields:
+      mode: |
+        [[[
+          const mode = entity.attributes['控制模式'] || '未知';
+          return `<span class="fn-mode">${mode}</span>`;
+        ]]]
+      pwm: |
+        [[[
+          const pwm = Math.min(100, Math.max(0, Number(entity.attributes['PWM百分比']) || 0));
+          return `<div class="fn-pwm-meta"><span>PWM</span><strong>${pwm}%</strong></div><div class="fn-pwm-track"><span style="width:${pwm}%"></span></div>`;
+        ]]]
+    styles:
+      card:
+        - min-height: 150px
+        - padding: 16px
+        - border-radius: 0
+        - background: transparent
+        - border: none
+        - box-shadow: none
+      grid:
+        - grid-template-areas: '"i n" "i s" "mode mode" "pwm pwm"'
+        - grid-template-columns: 54px 1fr
+        - grid-template-rows: 24px 34px 24px 42px
+        - column-gap: 10px
+      img_cell:
+        - width: 50px
+        - height: 50px
+        - border-radius: 50%
+        - background: rgba(240, 163, 74, 0.11)
+      icon:
+        - width: 34px
+        - color: "#f0a34a"
+        - animation: |
+            [[[
+              const rpm = Number(entity.state) || 0;
+              if (rpm <= 0) return 'none';
+              const duration = Math.max(0.45, Math.min(1.8, 1400 / rpm));
+              return `fn-nas-spin ${duration}s linear infinite`;
+            ]]]
+      name:
+        - justify-self: start
+        - align-self: end
+        - color: "#aebbc2"
+        - font-size: 13px
+      state:
+        - justify-self: start
+        - color: "#f5f7f8"
+        - font-size: 23px
+        - font-weight: 650
+      custom_fields:
+        mode:
+          - justify-self: start
+          - align-self: center
+        pwm:
+          - width: 100%
+          - align-self: end
+    extra_styles: |
+      @keyframes fn-nas-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      .fn-mode { display: inline-block; padding: 4px 8px; border-radius: 10px; color: #f0a34a; background: rgba(240, 163, 74, 0.12); font-size: 11px; }
+      .fn-pwm-meta { display: flex; justify-content: space-between; margin-bottom: 7px; color: #8fa1aa; font-size: 11px; }
+      .fn-pwm-meta strong { color: #f0a34a; font-weight: 600; }
+      .fn-pwm-track { width: 100%; height: 7px; overflow: hidden; border-radius: 4px; background: rgba(174, 187, 194, 0.14); }
+      .fn-pwm-track > span { display: block; height: 100%; border-radius: 4px; background: #f0a34a; }
 
   fn_nas_control:
     template: fn_nas_metric
+    name: |
+      [[[
+        return (entity.attributes.friendly_name || entity.entity_id)
+          .replace(/^飞牛NAS系统监控?\s*/, '').replace(/^飞牛NAS\s*/, '');
+      ]]]
     styles:
       card:
-        - min-height: 88px
-        - grid-template-columns: 38px 1fr
-      icon:
-        - width: 25px
+        - min-height: 92px
+      grid:
+        - grid-template-areas: '"i n" "i s"'
+        - grid-template-columns: 44px 1fr
+        - grid-template-rows: 30px 30px
+      custom_fields:
+        meter:
+          - display: none
       state:
         - font-size: 16px

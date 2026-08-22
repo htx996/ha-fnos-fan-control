@@ -2,7 +2,7 @@ title: 飞牛NAS
 path: fn-nas
 icon: mdi:nas
 type: sections
-max_columns: 3
+max_columns: 2
 background: "#11181c"
 card_mod:
   style: |
@@ -100,6 +100,7 @@ sections:
             icon: true
             extrema: true
             fill: fade
+          name: CPU 温度
           color_thresholds:
             - value: 35
               color: "#44c7d9"
@@ -138,6 +139,7 @@ sections:
             icon: true
             extrema: true
             fill: fade
+          name: 主板温度
           color_thresholds:
             - value: 30
               color: "#3bc48d"
@@ -196,7 +198,7 @@ sections:
                 fn_nas_dashboard_category: storage
               options:
                 type: custom:button-card
-                template: fn_nas_metric
+                template: fn_nas_volume
         sort:
           method: name
           ignore_case: true
@@ -229,9 +231,10 @@ sections:
               domain: sensor
               attributes:
                 fn_nas_dashboard_category: disk
+                fn_nas_dashboard_role: temperature
               options:
                 type: custom:button-card
-                template: fn_nas_metric
+                template: fn_nas_disk
         sort:
           method: name
           ignore_case: true
@@ -292,6 +295,75 @@ sections:
       - type: custom:auto-entities
         show_empty: false
         card:
+          type: vertical-stack
+        card_param: cards
+        filter:
+          include:
+            - integration: fn_nas
+              domain: select
+              attributes:
+                fn_nas_dashboard_category: control
+              options:
+                type: tile
+                name: 风扇控制模式
+                vertical: false
+                features_position: bottom
+                features:
+                  - type: select-options
+                card_mod:
+                  style: |
+                    ha-card {
+                      background: rgba(240, 163, 74, 0.05);
+                      border: none;
+                      box-shadow: none;
+                      color: #f4f7f8;
+                      --primary-text-color: #f4f7f8;
+                      --secondary-text-color: #aebbc2;
+                      --card-background-color: #172126;
+                      --secondary-background-color: #172126;
+                      --mdc-select-fill-color: #172126;
+                      --mdc-theme-on-surface: #f4f7f8;
+                    }
+        sort:
+          method: attribute
+          attribute: fn_nas_dashboard_order
+          numeric: true
+
+      - type: custom:auto-entities
+        show_empty: false
+        card:
+          type: vertical-stack
+        card_param: cards
+        filter:
+          include:
+            - integration: fn_nas
+              domain: fan
+              attributes:
+                fn_nas_dashboard_category: control
+              options:
+                type: tile
+                vertical: false
+                features_position: bottom
+                features:
+                  - type: fan-speed
+                card_mod:
+                  style: |
+                    ha-card {
+                      background: rgba(240, 163, 74, 0.05);
+                      border: none;
+                      box-shadow: none;
+                      color: #f4f7f8;
+                      --primary-text-color: #f4f7f8;
+                      --secondary-text-color: #aebbc2;
+                      --tile-color: #44c7d9;
+                    }
+        sort:
+          method: name
+          ignore_case: true
+
+      - type: custom:auto-entities
+        show_empty: false
+        card:
           type: grid
           columns: 2
           square: false
@@ -299,6 +371,16 @@ sections:
         filter:
           include:
             - integration: fn_nas
+              domain: switch
+              attributes:
+                fn_nas_dashboard_category: control
+              options:
+                type: custom:button-card
+                template: fn_nas_control
+                tap_action:
+                  action: more-info
+            - integration: fn_nas
+              domain: button
               attributes:
                 fn_nas_dashboard_category: control
               options:
@@ -339,9 +421,10 @@ sections:
               domain: sensor
               attributes:
                 fn_nas_dashboard_category: fan
+                fn_nas_dashboard_role: rpm
               options:
                 type: custom:button-card
-                template: fn_nas_metric
+                template: fn_nas_fan
         sort:
           method: name
           ignore_case: true

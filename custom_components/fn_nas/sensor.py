@@ -679,6 +679,10 @@ class FanSensor(CoordinatorEntity, SensorEntity):
         fan = self._fan_data or {}
         return {
             **self._dashboard_attributes,
+            "风扇名称": fan.get("name", "风扇"),
+            "转速": fan.get("rpm"),
+            "PWM百分比": fan.get("pwm_percent"),
+            "控制模式": fan.get("control_mode"),
             "风扇ID": self.fan_id,
             "当前风扇ID": fan.get("id"),
             "LLLED通道": infer_fan_channel(fan) or self.fan_channel,
