@@ -504,6 +504,134 @@ class FanManager:
             script["relevant_lines"] = relevant_lines
         return script
 
+    def parse_board_fan_config(self, output: str) -> dict:
+        """Parse the fnOS board fan configuration and configured path state."""
+        config = {}
+        fans = []
+        fans_by_index = {}
+
+        for line in output.splitlines():
+            if line.startswith("boardconfig\t"):
+                parts = (line.split("\t", 2) + ["", ""])[:3]
+                _record_type, key, value = parts
+                if key == "path" and value:
+                    config[key] = value.strip()[:240]
+                elif key in {"readable", "json_valid"}:
+                    config[key] = value.strip().lower() in {"1", "true", "yes"}
+                elif key == "fan_count":
+                    fan_count = self._to_int(value)
+                    if fan_count is not None:
+                        config[key] = fan_count
+            elif line.startswith("boardfan\t"):
+                parts = (line.split("\t") + [""] * 10)[:10]
+                (
+                    _record_type,
+                    index_text,
+                    name,
+                    temp_path,
+                    fan_path,
+                    start_speed,
+                    start_temp,
+                    max_speed,
+                    temp_div,
+                    verbose,
+                ) = parts
+                index = self._to_int(index_text)
+                if index is None or len(fans) >= 20:
+                    continue
+
+                fan = {
+                    "index": index,
+                    "name": name.strip()[:160] or f"风扇 {index + 1}",
+                    "tsysfs": temp_path.strip()[:240],
+                    "fsysfs": fan_path.strip()[:240],
+                }
+                for key, value in (
+                    ("start_speed", start_speed),
+                    ("start_temp", start_temp),
+                    ("max_speed", max_speed),
+                    ("temp_div", temp_div),
+                ):
+                    parsed_value = self._to_int(value)
+                    if parsed_value is not None:
+                        fan[key] = parsed_value
+                if verbose.strip():
+                    fan["verbose"] = verbose.strip().lower() in {"1", "true", "yes"}
+
+                fans.append(fan)
+                fans_by_index[index] = fan
+
+        for line in output.splitlines():
+            if not line.startswith("boardpath\t"):
+                continue
+            parts = (line.split("\t", 7) + [""] * 8)[:8]
+            (
+                _record_type,
+                index_text,
+                path_kind,
+                path,
+                exists,
+                readable,
+                writable,
+                value,
+            ) = parts
+            index = self._to_int(index_text)
+            fan = fans_by_index.get(index)
+            if fan is None or path_kind not in {"tsysfs", "fsysfs"}:
+                continue
+
+            path_info = {
+                "path": path.strip()[:240],
+                "exists": exists == "1",
+                "readable": readable == "1",
+                "writable": writable == "1",
+            }
+            if value.strip():
+                path_info["value"] = value.strip()[:160]
+            fan.setdefault("paths", {})[path_kind] = path_info
+
+        if fans:
+            config["fans"] = fans
+        return config
+
+    def parse_fancontrol_runtime(self, output: str) -> dict:
+        """Parse metadata and running process state for the fnOS fan controller."""
+        binary = {}
+        processes = []
+
+        for line in output.splitlines():
+            if line.startswith("fanbinary\t"):
+                parts = (line.split("\t", 2) + ["", ""])[:3]
+                _record_type, key, value = parts
+                if key == "size":
+                    parsed_value = self._to_int(value)
+                    if parsed_value is not None:
+                        binary[key] = parsed_value
+                elif key in {"path", "mode", "owner", "sha256", "file_type"} and value.strip():
+                    binary[key] = value.strip()[:240]
+            elif line.startswith("fanprocess\t"):
+                parts = (line.split("\t", 5) + [""] * 6)[:6]
+                _record_type, pid_text, executable, state, uid_text, command_line = parts
+                pid = self._to_int(pid_text)
+                uid = self._to_int(uid_text)
+                if pid is None or len(processes) >= 10:
+                    continue
+                processes.append(
+                    {
+                        "pid": pid,
+                        "exe": executable.strip()[:240],
+                        "state": state.strip()[:40],
+                        "uid": uid,
+                        "cmdline": command_line.strip()[:240],
+                    }
+                )
+
+        return {
+            "binary": binary,
+            "process_count": len(processes),
+            "processes": processes,
+        }
+
     def parse_it87_module_info(self, output: str) -> dict:
         """Parse installed it87 metadata and dry-run module loading output."""
         info = {}
@@ -945,6 +1073,117 @@ if [ -f "$fan_script" ]; then
     ' "$fan_script" 2>/dev/null | head -n 80
 fi
 
+board_json="/boot/board.json"
+printf "boardconfig\tpath\t%s\n" "$board_json"
+board_readable=0
+[ -r "$board_json" ] && board_readable=1
+printf "boardconfig\treadable\t%s\n" "$board_readable"
+if [ "$board_readable" = "1" ] && command -v jq >/dev/null 2>&1; then
+    board_json_valid=0
+    if jq -e 'type == "object" and ((.fan // []) | type == "array")' "$board_json" >/dev/null 2>&1; then
+        board_json_valid=1
+    fi
+    printf "boardconfig\tjson_valid\t%s\n" "$board_json_valid"
+
+    if [ "$board_json_valid" = "1" ]; then
+        board_fan_count="$(jq -r '(.fan // []) | length' "$board_json" 2>/dev/null | head -n 1)"
+        printf "boardconfig\tfan_count\t%s\n" "$board_fan_count"
+
+        jq -r '
+            ((.fan // [])[0:20] | to_entries[])
+            | [
+                (.key | tostring),
+                (.value.name // ""),
+                (.value.tsysfs // ""),
+                (.value.fsysfs // ""),
+                (.value.start_speed // ""),
+                (.value.start_temp // ""),
+                (.value.max_speed // ""),
+                (.value.temp_div // ""),
+                (.value.verbose // "")
+            ]
+            | @tsv
+            | "boardfan\t\(.)"
+        ' "$board_json" 2>/dev/null | head -n 20
+
+        tab="$(printf '\t')"
+        jq -r '
+            ((.fan // [])[0:20] | to_entries[]) as $entry
+            | [
+                {kind: "tsysfs", path: ($entry.value.tsysfs // "")},
+                {kind: "fsysfs", path: ($entry.value.fsysfs // "")}
+            ][]
+            | select((.path | type) == "string" and (.path | length) > 0)
+            | [$entry.key, .kind, .path]
+            | @tsv
+        ' "$board_json" 2>/dev/null | head -n 40 | while IFS="$tab" read -r fan_index path_kind configured_path; do
+            path_exists=0
+            path_readable=0
+            path_writable=0
+            path_value=""
+            [ -e "$configured_path" ] && path_exists=1
+            [ -r "$configured_path" ] && path_readable=1
+            [ -w "$configured_path" ] && path_writable=1
+
+            case "$configured_path" in
+                /sys/*|/proc/*)
+                    if [ -f "$configured_path" ] && [ "$path_readable" = "1" ]; then
+                        path_value="$(head -c 160 "$configured_path" 2>/dev/null | sanitize_value)"
+                    fi
+                    ;;
+            esac
+
+            configured_path="$(printf "%s" "$configured_path" | sanitize_value)"
+            printf "boardpath\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+                "$fan_index" "$path_kind" "$configured_path" "$path_exists" \
+                "$path_readable" "$path_writable" "$path_value"
+        done
+    fi
+fi
+
+fan_binary="/usr/sbin/fancontrol"
+if [ -e "$fan_binary" ]; then
+    fan_binary_real="$(readlink -f "$fan_binary" 2>/dev/null || printf "%s" "$fan_binary")"
+    printf "fanbinary\tpath\t%s\n" "$fan_binary_real"
+    binary_size="$(stat -c '%s' "$fan_binary" 2>/dev/null || true)"
+    binary_mode="$(stat -c '%a' "$fan_binary" 2>/dev/null || true)"
+    binary_owner="$(stat -c '%U:%G' "$fan_binary" 2>/dev/null || true)"
+    [ -n "$binary_size" ] && printf "fanbinary\tsize\t%s\n" "$binary_size"
+    [ -n "$binary_mode" ] && printf "fanbinary\tmode\t%s\n" "$binary_mode"
+    [ -n "$binary_owner" ] && printf "fanbinary\towner\t%s\n" "$binary_owner"
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        binary_sha256="$(sha256sum "$fan_binary" 2>/dev/null | awk '{print $1}')"
+        [ -n "$binary_sha256" ] && printf "fanbinary\tsha256\t%s\n" "$binary_sha256"
+    fi
+    if command -v file >/dev/null 2>&1; then
+        binary_type="$(file -b "$fan_binary" 2>/dev/null | sanitize_value)"
+        [ -n "$binary_type" ] && printf "fanbinary\tfile_type\t%s\n" "$binary_type"
+    fi
+
+    process_count=0
+    for process_dir in /proc/[0-9]*; do
+        [ -d "$process_dir" ] || continue
+        process_pid="${process_dir##*/}"
+        process_exe="$(readlink -f "$process_dir/exe" 2>/dev/null || true)"
+        process_cmdline="$(tr '\000' ' ' < "$process_dir/cmdline" 2>/dev/null | sanitize_value)"
+        is_fancontrol=0
+        [ "$process_exe" = "$fan_binary_real" ] && is_fancontrol=1
+        case "$process_cmdline" in
+            "$fan_binary"|"$fan_binary "*) is_fancontrol=1 ;;
+        esac
+        [ "$is_fancontrol" = "1" ] || continue
+
+        process_state="$(awk '/^State:/ {print $2; exit}' "$process_dir/status" 2>/dev/null | sanitize_value)"
+        process_uid="$(awk '/^Uid:/ {print $2; exit}' "$process_dir/status" 2>/dev/null | sanitize_value)"
+        process_exe="$(printf "%s" "$process_exe" | sanitize_value)"
+        printf "fanprocess\t%s\t%s\t%s\t%s\t%s\n" \
+            "$process_pid" "$process_exe" "$process_state" "$process_uid" "$process_cmdline"
+        process_count=$((process_count + 1))
+        [ "$process_count" -ge 10 ] && break
+    done
+fi
+
 if command -v modinfo >/dev/null 2>&1 && modinfo it87 >/dev/null 2>&1; then
     for field in filename version description vermagic; do
         value="$(modinfo -F "$field" it87 2>/dev/null | head -n 1 | sanitize_value)"
@@ -1076,6 +1315,12 @@ fi
             "vendor_fan_interfaces": [],
             "fan_service_logs": [],
             "fan_startup_script": {},
+            "board_fan_config": {},
+            "fancontrol_runtime": {
+                "binary": {},
+                "process_count": 0,
+                "processes": [],
+            },
             "it87_module_info": {},
             "fan_kernel_logs": [],
             "fan_control_app": {
@@ -1111,6 +1356,8 @@ fi
         vendor_interfaces = self.parse_vendor_fan_interfaces(inventory_output)
         fan_service_logs = self.parse_fan_service_logs(inventory_output)
         fan_startup_script = self.parse_fan_startup_script(inventory_output)
+        board_fan_config = self.parse_board_fan_config(inventory_output)
+        fancontrol_runtime = self.parse_fancontrol_runtime(inventory_output)
         it87_module_info = self.parse_it87_module_info(inventory_output)
         fan_kernel_logs = self.parse_fan_kernel_logs(inventory_output)
         fan_control_app = self.parse_fan_control_app(inventory_output)
@@ -1125,7 +1372,7 @@ fi
             if "pwm-fancontrol.service" in fan_service_details:
                 hint = (
                     "检测到 pwm-fancontrol.service，但它没有向标准 hwmon 暴露风扇；"
-                    "请查看风扇启动脚本、it87模块信息和风扇内核日志。"
+                    "请查看fnOS板级风扇配置、fancontrol运行状态和it87模块信息。"
                 )
         if error:
             hint = f"扫描命令异常: {error}"
@@ -1153,6 +1400,8 @@ fi
             "vendor_fan_interfaces": vendor_interfaces,
             "fan_service_logs": fan_service_logs,
             "fan_startup_script": fan_startup_script,
+            "board_fan_config": board_fan_config,
+            "fancontrol_runtime": fancontrol_runtime,
             "it87_module_info": it87_module_info,
             "fan_kernel_logs": fan_kernel_logs,
             "fan_control_app": fan_control_app,

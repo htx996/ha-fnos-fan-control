@@ -621,6 +621,8 @@ class FanDiscoverySensor(CoordinatorEntity, SensorEntity):
             "厂商风扇接口": diagnostics.get("vendor_fan_interfaces", []),
             "风扇服务日志": diagnostics.get("fan_service_logs", []),
             "风扇启动脚本": diagnostics.get("fan_startup_script", {}),
+            "fnOS板级风扇配置": diagnostics.get("board_fan_config", {}),
+            "fancontrol运行状态": diagnostics.get("fancontrol_runtime", {}),
             "it87模块信息": diagnostics.get("it87_module_info", {}),
             "风扇内核日志": diagnostics.get("fan_kernel_logs", []),
             "风扇控制应用": diagnostics.get("fan_control_app", {}),

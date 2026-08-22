@@ -101,6 +101,24 @@ class StubCoordinator:
                     {"line": 8, "text": "modprobe it87 force_id=0x8613"}
                 ],
             },
+            "board_fan_config": {
+                "path": "/boot/board.json",
+                "readable": True,
+                "json_valid": True,
+                "fan_count": 1,
+                "fans": [
+                    {
+                        "index": 0,
+                        "name": "System Fan",
+                        "fsysfs": "/sys/class/hwmon/hwmon5/pwm3",
+                    }
+                ],
+            },
+            "fancontrol_runtime": {
+                "binary": {"path": "/usr/sbin/fancontrol"},
+                "process_count": 0,
+                "processes": [],
+            },
             "it87_module_info": {
                 "filename": "/lib/modules/6.18.18/kernel/drivers/hwmon/it87.ko",
                 "parameters": ["force_id:Override chip ID"],
@@ -212,6 +230,14 @@ class FanDiscoverySensorTests(unittest.TestCase):
         self.assertEqual(
             entity.extra_state_attributes["风扇启动脚本"]["relevant_lines"][0]["line"],
             8,
+        )
+        self.assertEqual(
+            entity.extra_state_attributes["fnOS板级风扇配置"]["fans"][0]["fsysfs"],
+            "/sys/class/hwmon/hwmon5/pwm3",
+        )
+        self.assertEqual(
+            entity.extra_state_attributes["fancontrol运行状态"]["process_count"],
+            0,
         )
         self.assertEqual(
             entity.extra_state_attributes["it87模块信息"]["parameters"],

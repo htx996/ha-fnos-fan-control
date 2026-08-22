@@ -174,6 +174,20 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
                 "fanscript\tsyntax\tok",
                 "fanscriptline\t8\tmodprobe it87 force_id=0x8613",
                 "fanscriptline\t12\tsensors -s",
+                "boardconfig\tpath\t/boot/board.json",
+                "boardconfig\treadable\t1",
+                "boardconfig\tjson_valid\t1",
+                "boardconfig\tfan_count\t1",
+                "boardfan\t0\tSystem Fan\t/sys/class/thermal/thermal_zone0/temp\t/sys/class/hwmon/hwmon5/pwm3\t80\t45\t255\t1000\t1",
+                "boardpath\t0\ttsysfs\t/sys/class/thermal/thermal_zone0/temp\t1\t1\t0\t51000",
+                "boardpath\t0\tfsysfs\t/sys/class/hwmon/hwmon5/pwm3\t0\t0\t0\t",
+                "fanbinary\tpath\t/usr/sbin/fancontrol",
+                "fanbinary\tsize\t18432",
+                "fanbinary\tmode\t755",
+                "fanbinary\towner\troot:root",
+                "fanbinary\tsha256\tdef456",
+                "fanbinary\tfile_type\tELF 64-bit LSB executable",
+                "fanprocess\t4217\t/usr/sbin/fancontrol\tS\t0\t/usr/sbin/fancontrol -T /sys/class/thermal/thermal_zone0/temp -F /sys/class/hwmon/hwmon5/pwm3",
                 "it87info\tfilename\t/lib/modules/6.18.18/kernel/drivers/hwmon/it87.ko",
                 "it87info\tversion\t1.0",
                 "it87info\tvermagic\t6.18.18 SMP mod_unload",
@@ -255,6 +269,66 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
                 "relevant_lines": [
                     {"line": 8, "text": "modprobe it87 force_id=0x8613"},
                     {"line": 12, "text": "sensors -s"},
+                ],
+            },
+        )
+        self.assertEqual(
+            diagnostics["board_fan_config"],
+            {
+                "path": "/boot/board.json",
+                "readable": True,
+                "json_valid": True,
+                "fan_count": 1,
+                "fans": [
+                    {
+                        "index": 0,
+                        "name": "System Fan",
+                        "tsysfs": "/sys/class/thermal/thermal_zone0/temp",
+                        "fsysfs": "/sys/class/hwmon/hwmon5/pwm3",
+                        "start_speed": 80,
+                        "start_temp": 45,
+                        "max_speed": 255,
+                        "temp_div": 1000,
+                        "verbose": True,
+                        "paths": {
+                            "tsysfs": {
+                                "path": "/sys/class/thermal/thermal_zone0/temp",
+                                "exists": True,
+                                "readable": True,
+                                "writable": False,
+                                "value": "51000",
+                            },
+                            "fsysfs": {
+                                "path": "/sys/class/hwmon/hwmon5/pwm3",
+                                "exists": False,
+                                "readable": False,
+                                "writable": False,
+                            },
+                        },
+                    }
+                ],
+            },
+        )
+        self.assertEqual(
+            diagnostics["fancontrol_runtime"],
+            {
+                "binary": {
+                    "path": "/usr/sbin/fancontrol",
+                    "size": 18432,
+                    "mode": "755",
+                    "owner": "root:root",
+                    "sha256": "def456",
+                    "file_type": "ELF 64-bit LSB executable",
+                },
+                "process_count": 1,
+                "processes": [
+                    {
+                        "pid": 4217,
+                        "exe": "/usr/sbin/fancontrol",
+                        "state": "S",
+                        "uid": 0,
+                        "cmdline": "/usr/sbin/fancontrol -T /sys/class/thermal/thermal_zone0/temp -F /sys/class/hwmon/hwmon5/pwm3",
+                    }
                 ],
             },
         )
