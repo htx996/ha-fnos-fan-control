@@ -127,7 +127,7 @@ class DashboardVerifications(VerifyCase):
         self.assertIn("action: call-service", vm_action)
         self.assertIn("service: button.press", vm_action)
         self.assertIn("return entity.entity_id", vm_action)
-        self.assertNotIn("action: more-info", vm_action)
+        self.assertIn("hold_action:\n      action: more-info", vm_action)
 
     def verify_dashboard_uses_graphical_storage_disk_and_fan_views(self):
         view = DASHBOARD_VIEW_PATH.read_text(encoding="utf-8")
