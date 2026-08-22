@@ -141,93 +141,6 @@ sections:
           attribute: fn_nas_dashboard_order
           numeric: true
 
-  - type: grid
-    cards:
-      - type: heading
-        heading: 运行与控制
-        heading_style: title
-        icon: mdi:tune-variant
-        card_mod:
-          style: |
-            :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
-            }
-        grid_options:
-          columns: 12
-          rows: 1
-
-      - type: custom:auto-entities
-        show_empty: false
-        card:
-          type: entities
-          state_color: true
-          card_mod:
-            style: |
-              ha-card {
-                background: transparent;
-                border: none;
-                box-shadow: none;
-                color: #f4f7f8;
-                --primary-text-color: #f4f7f8;
-                --secondary-text-color: #aebbc2;
-              }
-              #states {
-                padding: 0 8px !important;
-              }
-        card_param: entities
-        filter:
-          include:
-            - integration: fn_nas
-              domain: select
-              attributes:
-                fn_nas_dashboard_category: control
-              options:
-                name: 风扇控制模式
-        sort:
-          method: attribute
-          attribute: fn_nas_dashboard_order
-          numeric: true
-
-      - type: heading
-        heading: 风扇
-        heading_style: subtitle
-        icon: mdi:fan
-        card_mod:
-          style: |
-            :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
-            }
-        grid_options:
-          columns: 12
-          rows: 1
-
-      - type: custom:auto-entities
-        show_empty: false
-        card:
-          type: grid
-          columns: 2
-          square: false
-        card_param: cards
-        filter:
-          include:
-            - integration: fn_nas
-              domain: sensor
-              attributes:
-                fn_nas_dashboard_category: fan
-                fn_nas_dashboard_role: rpm
-              options:
-                type: custom:button-card
-                template: fn_nas_fan
-        sort:
-          method: name
-          ignore_case: true
-
-  - type: grid
-    cards:
       - type: heading
         heading: 运行监控
         heading_style: title
@@ -359,6 +272,89 @@ sections:
 
   - type: grid
     cards:
+      - type: heading
+        heading: 运行与控制
+        heading_style: title
+        icon: mdi:tune-variant
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
+        grid_options:
+          columns: 12
+          rows: 1
+
+      - type: custom:auto-entities
+        show_empty: false
+        card:
+          type: entities
+          state_color: true
+          card_mod:
+            style: |
+              ha-card {
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                color: #f4f7f8;
+                --primary-text-color: #f4f7f8;
+                --secondary-text-color: #aebbc2;
+              }
+              #states {
+                padding: 0 8px !important;
+              }
+        card_param: entities
+        filter:
+          include:
+            - integration: fn_nas
+              domain: select
+              attributes:
+                fn_nas_dashboard_category: control
+              options:
+                name: 风扇控制模式
+        sort:
+          method: attribute
+          attribute: fn_nas_dashboard_order
+          numeric: true
+
+      - type: heading
+        heading: 风扇
+        heading_style: subtitle
+        icon: mdi:fan
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
+        grid_options:
+          columns: 12
+          rows: 1
+
+      - type: custom:auto-entities
+        show_empty: false
+        card:
+          type: grid
+          columns: 2
+          square: false
+        card_param: cards
+        filter:
+          include:
+            - integration: fn_nas
+              domain: sensor
+              attributes:
+                fn_nas_dashboard_category: fan
+                fn_nas_dashboard_role: rpm
+              options:
+                type: custom:button-card
+                template: fn_nas_fan
+        sort:
+          method: name
+          ignore_case: true
+
       - type: heading
         heading: 设备详情
         heading_style: title

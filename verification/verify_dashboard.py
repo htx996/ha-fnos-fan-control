@@ -146,7 +146,12 @@ class DashboardVerifications(VerifyCase):
         self.assertIn("fn_nas_dashboard_role: rpm", view)
         self.assertIn("max_columns: 2", view)
         self.assertIn("dense_section_placement: true", view)
-        self.assertEqual(view.count("\n  - type: grid\n"), 4)
+        columns = view.split("\n  - type: grid\n")[1:]
+        self.assertEqual(len(columns), 2)
+        self.assertIn("heading: 系统概览", columns[0])
+        self.assertIn("heading: 运行监控", columns[0])
+        self.assertIn("heading: 运行与控制", columns[1])
+        self.assertIn("heading: 设备详情", columns[1])
         self.assertNotIn("column_span:", view)
         for heading in ("系统概览", "运行与控制", "运行监控", "设备详情"):
             self.assertIn(f"heading: {heading}", view)
