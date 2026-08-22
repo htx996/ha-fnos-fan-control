@@ -35,6 +35,31 @@ class FakeCoordinator:
 
 
 class FanManagerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_get_fans_info_uses_sensors_output_when_hwmon_has_no_fans(self):
+        coordinator = FakeCoordinator(
+            [
+                "",
+                "\n".join(
+                    [
+                        "nct6798-isa-0290",
+                        "Adapter: ISA adapter",
+                        "CPU Fan:     1180 RPM",
+                        "System Fan:   900 RPM",
+                        "SYSTIN:       +27.8°C",
+                    ]
+                ),
+            ]
+        )
+
+        fans = await FanManager(coordinator).get_fans_info()
+
+        self.assertEqual(len(fans), 2)
+        self.assertEqual(fans[0]["name"], "CPU Fan")
+        self.assertEqual(fans[0]["rpm"], 1180)
+        self.assertFalse(fans[0]["supports_pwm"])
+        self.assertFalse(fans[0]["supports_modes"])
+        self.assertIn("sensors", coordinator.commands[1])
+
     def test_parse_hwmon_snapshot_discovers_rpm_pwm_and_mode_without_hardcoded_hwmon(self):
         snapshot = "\n".join(
             [

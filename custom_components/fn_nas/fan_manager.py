@@ -36,9 +36,12 @@ class FanManager:
         """Discover fan sensors and PWM controls from Linux hwmon."""
         try:
             output = await self.coordinator.run_command(self._build_discovery_command())
-            if not output:
-                return []
-            return self.parse_hwmon_snapshot(output)
+            fans = self.parse_hwmon_snapshot(output) if output else []
+            if fans:
+                return fans
+
+            sensors_output = await self.coordinator.run_command("sensors 2>/dev/null || true")
+            return self.parse_sensors_output(sensors_output) if sensors_output else []
         except Exception as e:
             _LOGGER.debug("获取风扇信息失败: %s", str(e))
             return []
@@ -115,6 +118,49 @@ class FanManager:
                     "control_mode": control_mode,
                     "supports_pwm": has_pwm and pwm_writable,
                     "supports_modes": pwm_enable_path is not None and mode_writable,
+                }
+            )
+
+        return fans
+
+    def parse_sensors_output(self, output: str) -> list[dict]:
+        """Parse fan RPM lines from lm-sensors output as a monitor-only fallback."""
+        fans = []
+        seen_ids = set()
+
+        for line in output.splitlines():
+            match = re.match(r"^\s*([^:]+?)\s*:\s*([0-9,]+)\s*RPM\b", line, re.IGNORECASE)
+            if not match:
+                continue
+
+            label = match.group(1).strip()
+            rpm = self._to_int(match.group(2).replace(",", ""))
+            if rpm is None:
+                continue
+
+            fan_id = self._make_fan_id("sensors", "lm-sensors", len(fans) + 1, label)
+            if fan_id in seen_ids:
+                continue
+            seen_ids.add(fan_id)
+
+            fans.append(
+                {
+                    "id": fan_id,
+                    "name": label or f"风扇 {len(fans) + 1}",
+                    "index": len(fans) + 1,
+                    "chip": "sensors",
+                    "hwmon_path": None,
+                    "device_path": "lm-sensors",
+                    "fan_input_path": None,
+                    "pwm_path": None,
+                    "pwm_enable_path": None,
+                    "rpm": rpm,
+                    "pwm_raw": None,
+                    "pwm_percent": None,
+                    "pwm_enable": None,
+                    "control_mode": None,
+                    "supports_pwm": False,
+                    "supports_modes": False,
                 }
             )
 
