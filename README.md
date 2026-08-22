@@ -12,6 +12,7 @@
     *   硬盘通电时间
     *   风扇转速 RPM
     *   风扇 PWM 百分比和当前控制状态
+    *   风扇发现状态诊断
 *   ​**系统监控**​
     *   系统运行状态
     *   CPU温度监控
@@ -62,6 +63,7 @@ https://github.com/htx996/ha-fnos-fan-control
 *   网络唤醒功能需在BIOS中启用Wake-on-LAN
 *   风扇功能会自动发现 `/sys/class/hwmon`，不需要手动填写 `hwmonX`
 *   不支持 PWM 控制的机型只显示风扇监控实体，不会创建调速实体
+*   如果没有看到风扇实体，请打开“飞牛NAS系统监控”设备里的“风扇发现状态”实体，查看 `hwmon候选`、`sensors摘要`、`sensors_u摘要` 属性
 
 ### 🔄 问题排查
 

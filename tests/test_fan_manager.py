@@ -60,6 +60,54 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(fans[0]["supports_modes"])
         self.assertIn("sensors", coordinator.commands[1])
 
+    async def test_get_fans_info_records_diagnostics_when_no_fans_are_found(self):
+        coordinator = FakeCoordinator(
+            [
+                "",
+                "\n".join(
+                    [
+                        "coretemp-isa-0000",
+                        "Adapter: ISA adapter",
+                        "Package id 0: +51.0°C",
+                    ]
+                ),
+                "",
+                "hwmon\t/sys/class/hwmon/hwmon0\t/sys/devices/platform/coretemp.0\tcoretemp\t\t",
+            ]
+        )
+        manager = FanManager(coordinator)
+
+        fans = await manager.get_fans_info()
+
+        self.assertEqual(fans, [])
+        self.assertEqual(manager.last_diagnostics["status"], "未发现风扇")
+        self.assertEqual(manager.last_diagnostics["fan_count"], 0)
+        self.assertEqual(manager.last_diagnostics["source"], "none")
+        self.assertEqual(
+            manager.last_diagnostics["hwmon_inventory"][0]["path"],
+            "/sys/class/hwmon/hwmon0",
+        )
+        self.assertIn("sensors -u", coordinator.commands[2])
+
+    def test_parse_sensors_output_accepts_sensors_u_fan_input_lines(self):
+        output = "\n".join(
+            [
+                "nct6798-isa-0290",
+                "Adapter: ISA adapter",
+                "fan1:",
+                "  fan1_input: 1180.000",
+                "fan2:",
+                "  fan2_input: 1,230.000",
+            ]
+        )
+
+        fans = FanManager(FakeCoordinator()).parse_sensors_output(output)
+
+        self.assertEqual(len(fans), 2)
+        self.assertEqual(fans[0]["name"], "fan1")
+        self.assertEqual(fans[0]["rpm"], 1180)
+        self.assertEqual(fans[1]["rpm"], 1230)
+
     def test_parse_hwmon_snapshot_discovers_rpm_pwm_and_mode_without_hardcoded_hwmon(self):
         snapshot = "\n".join(
             [

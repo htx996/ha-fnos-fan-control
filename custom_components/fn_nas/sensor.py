@@ -7,7 +7,7 @@ from .const import (
     ICON_TEMPERATURE, ICON_HEALTH, ATTR_DISK_MODEL, ATTR_SERIAL_NO,
     ATTR_POWER_ON_HOURS, ATTR_TOTAL_CAPACITY, ATTR_HEALTH_STATUS,
     DEVICE_ID_NAS, DATA_UPDATE_COORDINATOR, ICON_FAN, FAN_RPM,
-    FAN_PWM, FAN_CONTROL_MODE
+    FAN_PWM, FAN_CONTROL_MODE, FAN_DISCOVERY
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -166,6 +166,11 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                 )
             )
             existing_ids.add(mode_uid)
+
+    fan_discovery_uid = f"{config_entry.entry_id}_fan_discovery_status"
+    if fan_discovery_uid not in existing_ids:
+        entities.append(FanDiscoverySensor(coordinator, config_entry.entry_id))
+        existing_ids.add(fan_discovery_uid)
 
     # 添加虚拟机状态传感器
     if "vms" in coordinator.data:
@@ -574,6 +579,39 @@ class FanSensor(CoordinatorEntity, SensorEntity):
             "PWM enable": fan.get("pwm_enable"),
             "PWM控制支持": fan.get("supports_pwm", False),
             "模式控制支持": fan.get("supports_modes", False),
+        }
+
+class FanDiscoverySensor(CoordinatorEntity, SensorEntity):
+    def __init__(self, coordinator, entry_id):
+        super().__init__(coordinator)
+        self._attr_name = "风扇发现状态"
+        self._attr_unique_id = f"{entry_id}_fan_discovery_status"
+        self._attr_icon = "mdi:fan-alert"
+        self.sensor_type = FAN_DISCOVERY
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
+            "name": "飞牛NAS系统监控",
+            "manufacturer": "飞牛",
+            "model": "飞牛NAS",
+        }
+
+    @property
+    def native_value(self):
+        diagnostics = self.coordinator.data.get("fan_diagnostics", {})
+        return diagnostics.get("status", "未扫描")
+
+    @property
+    def extra_state_attributes(self):
+        diagnostics = self.coordinator.data.get("fan_diagnostics", {})
+        return {
+            "来源": diagnostics.get("source", "none"),
+            "风扇数量": diagnostics.get("fan_count", 0),
+            "hwmon记录数": diagnostics.get("hwmon_entry_count", 0),
+            "hwmon候选": diagnostics.get("hwmon_inventory", []),
+            "sensors摘要": diagnostics.get("sensors_fan_lines", []),
+            "sensors_u摘要": diagnostics.get("sensors_u_fan_lines", []),
+            "提示": diagnostics.get("hint", "等待下一次扫描"),
+            "错误": diagnostics.get("error"),
         }
 
 class UPSSensor(CoordinatorEntity, SensorEntity):

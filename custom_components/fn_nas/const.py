@@ -37,6 +37,7 @@ FAN_SPEED = "fan_speed"
 FAN_RPM = "fan_rpm"
 FAN_PWM = "fan_pwm"
 FAN_CONTROL_MODE = "fan_control_mode"
+FAN_DISCOVERY = "fan_discovery"
 UPS_INFO = "ups_info" 
 
 ATTR_DISK_MODEL = "硬盘型号"

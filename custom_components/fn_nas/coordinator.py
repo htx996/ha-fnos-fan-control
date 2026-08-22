@@ -82,7 +82,8 @@ class FlynasCoordinator(DataUpdateCoordinator):
             "ups": {},
             "vms": [],
             "docker_containers": [],
-            "fans": []
+            "fans": [],
+            "fan_diagnostics": {}
         }
     
     def _debug_log(self, message: str):
@@ -395,6 +396,7 @@ class FlynasCoordinator(DataUpdateCoordinator):
             self._debug_log("开始获取风扇信息...")
             fans = await self.fan_manager.get_fans_info()
             self._debug_log(f"风扇信息获取完成，数量: {len(fans)}")
+            fan_diagnostics = self.fan_manager.last_diagnostics
             
             self._debug_log("开始获取虚拟机信息...")
             vms = await self.vm_manager.get_vm_list()
@@ -424,7 +426,8 @@ class FlynasCoordinator(DataUpdateCoordinator):
                 "ups": ups_info,
                 "vms": vms,
                 "docker_containers": docker_containers,
-                "fans": fans
+                "fans": fans,
+                "fan_diagnostics": fan_diagnostics
             }
             
             self._debug_log(f"数据更新完成: disks={len(disks)}, fans={len(fans)}, vms={len(vms)}, containers={len(docker_containers)}")

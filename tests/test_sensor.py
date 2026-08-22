@@ -1,0 +1,139 @@
+import importlib.util
+import sys
+import types
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+
+SENSOR_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "custom_components"
+    / "fn_nas"
+    / "sensor.py"
+)
+
+
+class StubCoordinatorEntity:
+    def __init__(self, coordinator):
+        self.coordinator = coordinator
+
+
+class StubSensorEntity:
+    pass
+
+
+class StubSensorDeviceClass:
+    BATTERY = "battery"
+    TEMPERATURE = "temperature"
+
+
+class StubSensorStateClass:
+    MEASUREMENT = "measurement"
+
+
+class StubUnitOfTemperature:
+    CELSIUS = "°C"
+
+
+class StubCoordinator:
+    host = "192.168.2.86"
+
+    data = {
+        "fan_diagnostics": {
+            "status": "未发现风扇",
+            "fan_count": 0,
+            "source": "none",
+            "hwmon_entry_count": 0,
+            "hwmon_inventory": [
+                {
+                    "path": "/sys/class/hwmon/hwmon0",
+                    "device": "/sys/devices/platform/coretemp.0",
+                    "chip": "coretemp",
+                    "fan_files": [],
+                    "pwm_files": [],
+                }
+            ],
+            "sensors_fan_lines": [],
+            "sensors_u_fan_lines": [],
+            "hint": "没有发现风扇",
+        }
+    }
+
+
+def _install_stubs():
+    homeassistant = types.ModuleType("homeassistant")
+    components = types.ModuleType("homeassistant.components")
+    sensor_component = types.ModuleType("homeassistant.components.sensor")
+    sensor_component.SensorEntity = StubSensorEntity
+    sensor_component.SensorDeviceClass = StubSensorDeviceClass
+    sensor_component.SensorStateClass = StubSensorStateClass
+    helpers = types.ModuleType("homeassistant.helpers")
+    update_coordinator = types.ModuleType("homeassistant.helpers.update_coordinator")
+    update_coordinator.CoordinatorEntity = StubCoordinatorEntity
+    const = types.ModuleType("homeassistant.const")
+    const.UnitOfTemperature = StubUnitOfTemperature
+
+    custom_components = types.ModuleType("custom_components")
+    fn_nas = types.ModuleType("custom_components.fn_nas")
+    fn_nas.__path__ = []
+    fn_nas_const = types.ModuleType("custom_components.fn_nas.const")
+    fn_nas_const.DOMAIN = "fn_nas"
+    fn_nas_const.HDD_TEMP = "temperature"
+    fn_nas_const.HDD_HEALTH = "health"
+    fn_nas_const.HDD_STATUS = "status"
+    fn_nas_const.SYSTEM_INFO = "system"
+    fn_nas_const.ICON_DISK = "mdi:harddisk"
+    fn_nas_const.ICON_TEMPERATURE = "mdi:thermometer"
+    fn_nas_const.ICON_HEALTH = "mdi:heart-pulse"
+    fn_nas_const.ATTR_DISK_MODEL = "硬盘型号"
+    fn_nas_const.ATTR_SERIAL_NO = "序列号"
+    fn_nas_const.ATTR_POWER_ON_HOURS = "通电时间"
+    fn_nas_const.ATTR_TOTAL_CAPACITY = "总容量"
+    fn_nas_const.ATTR_HEALTH_STATUS = "健康状态"
+    fn_nas_const.DEVICE_ID_NAS = "flynas_nas_system"
+    fn_nas_const.DATA_UPDATE_COORDINATOR = "coordinator"
+    fn_nas_const.ICON_FAN = "mdi:fan"
+    fn_nas_const.FAN_RPM = "fan_rpm"
+    fn_nas_const.FAN_PWM = "fan_pwm"
+    fn_nas_const.FAN_CONTROL_MODE = "fan_control_mode"
+    fn_nas_const.FAN_DISCOVERY = "fan_discovery"
+
+    return {
+        "homeassistant": homeassistant,
+        "homeassistant.components": components,
+        "homeassistant.components.sensor": sensor_component,
+        "homeassistant.helpers": helpers,
+        "homeassistant.helpers.update_coordinator": update_coordinator,
+        "homeassistant.const": const,
+        "custom_components": custom_components,
+        "custom_components.fn_nas": fn_nas,
+        "custom_components.fn_nas.const": fn_nas_const,
+    }
+
+
+class FanDiscoverySensorTests(unittest.TestCase):
+    def test_fan_discovery_sensor_exposes_diagnostics_attributes(self):
+        with patch.dict(sys.modules, _install_stubs()):
+            spec = importlib.util.spec_from_file_location(
+                "custom_components.fn_nas.sensor",
+                SENSOR_PATH,
+            )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["custom_components.fn_nas.sensor"] = module
+            spec.loader.exec_module(module)
+
+            entity = module.FanDiscoverySensor(StubCoordinator(), "entry-1")
+
+        self.assertEqual(entity.native_value, "未发现风扇")
+        self.assertEqual(entity._attr_unique_id, "entry-1_fan_discovery_status")
+        self.assertEqual(entity.extra_state_attributes["来源"], "none")
+        self.assertEqual(entity.extra_state_attributes["风扇数量"], 0)
+        self.assertEqual(
+            entity.extra_state_attributes["hwmon候选"][0]["path"],
+            "/sys/class/hwmon/hwmon0",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
