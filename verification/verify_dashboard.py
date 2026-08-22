@@ -139,7 +139,7 @@ class DashboardVerifications(VerifyCase):
         self.assertIn("type: entities", view)
         self.assertIn("name: 风扇控制模式", view)
         self.assertIn("grid-template-areas: '\"i n\" \"i s\" \"mode pwm\"'", templates)
-        self.assertIn("grid-template-columns: 48px 1fr", templates)
+        self.assertIn("grid-template-columns: 42px 1fr", templates)
         self.assertNotIn("type: fan-speed", view)
         self.assertNotIn("type: select-options", view)
         self.assertIn("conic-gradient", templates)
@@ -149,8 +149,10 @@ class DashboardVerifications(VerifyCase):
         self.assertIn("candidate.entity_id.startsWith('fan.')", templates)
         self.assertIn("candidate.attributes['LLLED通道'] === channel", templates)
         self.assertNotIn("fn-pwm-track", templates)
-        for height in ("86px", "104px", "112px", "72px"):
+        for height in ("68px", "82px", "88px", "86px", "58px"):
             self.assertIn(f"min-height: {height}", templates)
+        self.assertIn("rows: 4", view)
+        self.assertEqual(view.count("height: 64"), 2)
 
     def verify_readme_documents_manual_dashboard_installation(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

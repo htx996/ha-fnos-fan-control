@@ -42,10 +42,11 @@ sections:
           action: none
         grid_options:
           columns: 12
-          rows: 5
+          rows: 4
         card_mod:
           style: |
             ha-card {
+              height: 100%;
               overflow: hidden;
               border-radius: 0;
               border: none;
@@ -53,7 +54,10 @@ sections:
               box-shadow: none;
             }
             ha-card img {
+              width: 100% !important;
+              height: 100% !important;
               object-fit: contain !important;
+              object-position: center !important;
             }
 
       - type: custom:auto-entities
@@ -218,7 +222,7 @@ sections:
           hours_to_show: 24
           points_per_hour: 4
           line_width: 3
-          height: 90
+          height: 64
           show:
             icon: true
             extrema: true
@@ -257,7 +261,7 @@ sections:
           hours_to_show: 24
           points_per_hour: 4
           line_width: 3
-          height: 90
+          height: 64
           show:
             icon: true
             extrema: true

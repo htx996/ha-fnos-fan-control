@@ -45,24 +45,24 @@ button_card_templates:
         ]]]
     styles:
       card:
-        - min-height: 86px
-        - padding: 10px 8px
+        - min-height: 68px
+        - padding: 5px 6px
         - border-radius: 0
         - background: transparent
         - border: none
         - box-shadow: none
       grid:
         - grid-template-areas: '"i n" "i s" "meter meter"'
-        - grid-template-columns: 38px 1fr
-        - grid-template-rows: 19px 31px 8px
-        - column-gap: 8px
+        - grid-template-columns: 34px 1fr
+        - grid-template-rows: 16px 24px 5px
+        - column-gap: 6px
       img_cell:
-        - width: 34px
-        - height: 34px
-        - border-radius: 10px
+        - width: 30px
+        - height: 30px
+        - border-radius: 8px
         - background: rgba(68, 199, 217, 0.10)
       icon:
-        - width: 21px
+        - width: 19px
         - color: |
             [[[
               const colors = {system: '#44c7d9', storage: '#3bc48d', disk: '#8bd450', fan: '#f0a34a', ups: '#e7c64f', vm: '#77a9ff', docker: '#49b9e8', control: '#ef6b68'};
@@ -72,8 +72,8 @@ button_card_templates:
         - justify-self: start
         - align-self: end
         - color: "#8fa1aa"
-        - font-size: 12px
-        - line-height: 16px
+        - font-size: 11px
+        - line-height: 14px
         - white-space: normal
         - text-align: left
       state:
@@ -83,10 +83,10 @@ button_card_templates:
         - font-size: |
             [[[
               const role = entity.attributes.fn_nas_dashboard_role;
-              return ['status', 'os_version'].includes(role) ? '14px' : '20px';
+              return ['status', 'os_version'].includes(role) ? '13px' : '18px';
             ]]]
         - font-weight: 650
-        - line-height: 28px
+        - line-height: 23px
         - white-space: nowrap
         - overflow: hidden
         - text-overflow: ellipsis
@@ -137,41 +137,41 @@ button_card_templates:
         ]]]
     styles:
       card:
-        - min-height: 104px
-        - padding: 10px
+        - min-height: 82px
+        - padding: 6px
         - border-radius: 0
         - background: transparent
         - border: none
         - box-shadow: none
       grid:
         - grid-template-areas: '"i n" "i s" "usage usage"'
-        - grid-template-columns: 42px 1fr
-        - grid-template-rows: 20px 30px 32px
-        - column-gap: 9px
+        - grid-template-columns: 36px 1fr
+        - grid-template-rows: 17px 25px 24px
+        - column-gap: 7px
       img_cell:
-        - width: 38px
-        - height: 38px
+        - width: 32px
+        - height: 32px
         - border-radius: 50%
         - background: rgba(59, 196, 141, 0.12)
       icon:
-        - width: 23px
+        - width: 20px
         - color: "#3bc48d"
       name:
         - justify-self: start
         - color: "#aebbc2"
-        - font-size: 13px
+        - font-size: 12px
       state:
         - justify-self: start
         - color: "#f5f7f8"
-        - font-size: 19px
+        - font-size: 17px
         - font-weight: 650
       custom_fields:
         usage:
           - width: 100%
           - align-self: end
     extra_styles: |
-      .fn-volume-meta { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 4px; color: #8fa1aa; font-size: 11px; }
-      .fn-volume-track { width: 100%; height: 5px; overflow: hidden; border-radius: 3px; background: rgba(174, 187, 194, 0.14); }
+      .fn-volume-meta { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; color: #8fa1aa; font-size: 10px; }
+      .fn-volume-track { width: 100%; height: 4px; overflow: hidden; border-radius: 2px; background: rgba(174, 187, 194, 0.14); }
       .fn-volume-track > span { display: block; height: 100%; border-radius: 4px; background: #3bc48d; }
 
   fn_nas_disk:
@@ -217,20 +217,20 @@ button_card_templates:
         ]]]
     styles:
       card:
-        - min-height: 112px
-        - padding: 10px 8px
+        - min-height: 88px
+        - padding: 6px
         - border-radius: 0
         - background: transparent
         - border: none
         - box-shadow: none
       grid:
         - grid-template-areas: '"i n" "i s" "details details" "health health"'
-        - grid-template-columns: 54px 1fr
-        - grid-template-rows: 23px 28px 20px 19px
-        - column-gap: 9px
+        - grid-template-columns: 44px 1fr
+        - grid-template-rows: 19px 24px 16px 15px
+        - column-gap: 7px
       img_cell:
-        - width: 48px
-        - height: 48px
+        - width: 40px
+        - height: 40px
         - border-radius: 50%
         - background: |
             [[[
@@ -239,33 +239,33 @@ button_card_templates:
               const color = temp >= 60 ? '#ef6b68' : temp >= 48 ? '#e7c64f' : '#8bd450';
               return `conic-gradient(${color} 0deg ${angle}deg, rgba(174,187,194,0.12) ${angle}deg 360deg)`;
             ]]]
-        - box-shadow: inset 0 0 0 5px #11181c
+        - box-shadow: inset 0 0 0 4px #11181c
       icon:
-        - width: 23px
+        - width: 20px
         - color: "#dce6ea"
       name:
         - justify-self: start
         - align-self: end
         - color: "#cbd5da"
-        - font-size: 13px
+        - font-size: 12px
         - font-weight: 500
-        - line-height: 17px
+        - line-height: 15px
         - white-space: normal
         - text-align: left
       state:
         - justify-self: start
         - color: "#f5f7f8"
-        - font-size: 23px
+        - font-size: 20px
         - font-weight: 650
       custom_fields:
         details:
           - justify-self: start
           - color: "#778b95"
-          - font-size: 11px
+          - font-size: 10px
         health:
           - justify-self: start
           - color: "#aebbc2"
-          - font-size: 12px
+          - font-size: 11px
     extra_styles: |
       .fn-health-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
 
@@ -307,24 +307,24 @@ button_card_templates:
         ]]]
     styles:
       card:
-        - min-height: 112px
-        - padding: 10px
+        - min-height: 86px
+        - padding: 6px
         - border-radius: 0
         - background: transparent
         - border: none
         - box-shadow: none
       grid:
         - grid-template-areas: '"i n" "i s" "mode pwm"'
-        - grid-template-columns: 48px 1fr
-        - grid-template-rows: 22px 32px 28px
-        - column-gap: 9px
+        - grid-template-columns: 42px 1fr
+        - grid-template-rows: 18px 25px 22px
+        - column-gap: 7px
       img_cell:
-        - width: 44px
-        - height: 44px
+        - width: 38px
+        - height: 38px
         - border-radius: 50%
         - background: rgba(240, 163, 74, 0.11)
       icon:
-        - width: 31px
+        - width: 27px
         - color: "#f0a34a"
         - animation: |
             [[[
@@ -337,11 +337,11 @@ button_card_templates:
         - justify-self: start
         - align-self: end
         - color: "#aebbc2"
-        - font-size: 13px
+        - font-size: 12px
       state:
         - justify-self: start
         - color: "#f5f7f8"
-        - font-size: 16px
+        - font-size: 15px
         - font-weight: 650
       custom_fields:
         mode:
@@ -353,9 +353,9 @@ button_card_templates:
           - text-align: right
     extra_styles: |
       @keyframes fn-nas-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      .fn-mode { display: inline-block; padding: 3px 7px; border-radius: 9px; color: #f0a34a; background: rgba(240, 163, 74, 0.12); font-size: 11px; }
-      .fn-pwm-value { display: block; color: #f0a34a; font-size: 20px; font-weight: 650; line-height: 22px; }
-      .fn-pwm-value + small { display: block; color: #778b95; font-size: 9px; line-height: 12px; }
+      .fn-mode { display: inline-block; padding: 2px 6px; border-radius: 8px; color: #f0a34a; background: rgba(240, 163, 74, 0.12); font-size: 10px; }
+      .fn-pwm-value { display: block; color: #f0a34a; font-size: 18px; font-weight: 650; line-height: 19px; }
+      .fn-pwm-value + small { display: block; color: #778b95; font-size: 8px; line-height: 9px; }
 
   fn_nas_control:
     template: fn_nas_metric
@@ -366,12 +366,12 @@ button_card_templates:
       ]]]
     styles:
       card:
-        - min-height: 72px
-        - padding: 8px
+        - min-height: 58px
+        - padding: 5px 6px
       grid:
         - grid-template-areas: '"i n" "i s"'
         - grid-template-columns: 38px 1fr
-        - grid-template-rows: 24px 24px
+        - grid-template-rows: 21px 21px
       custom_fields:
         meter:
           - display: none
