@@ -57,6 +57,7 @@ sections:
                   height: 100% !important;
                   object-fit: contain !important;
                   object-position: center !important;
+                  transform: scale(1.08);
                 }
           - type: custom:auto-entities
             show_empty: false
@@ -118,7 +119,7 @@ sections:
             }
         grid_options:
           columns: 12
-          rows: 4
+          rows: 5
 
       - type: custom:auto-entities
         show_empty: false

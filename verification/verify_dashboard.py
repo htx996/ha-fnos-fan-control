@@ -150,6 +150,9 @@ class DashboardVerifications(VerifyCase):
         self.assertEqual(len(columns), 2)
         self.assertIn("heading: 系统概览", columns[0])
         self.assertIn("heading: 运行监控", columns[0])
+        overview = columns[0].split("heading: 运行监控", 1)[0]
+        self.assertIn("transform: scale(1.08)", overview)
+        self.assertIn("rows: 5", overview)
         self.assertIn("heading: 运行与控制", columns[1])
         self.assertIn("heading: 设备详情", columns[1])
         self.assertNotIn("column_span:", view)
@@ -184,7 +187,7 @@ class DashboardVerifications(VerifyCase):
         self.assertIn("width: 144px", view)
         for height in ("68px", "82px", "88px", "86px", "58px"):
             self.assertIn(f"min-height: {height}", templates)
-        self.assertIn("rows: 4", view)
+        self.assertIn("rows: 5", view)
         self.assertEqual(view.count("height: 64"), 2)
         self.assertEqual(view.count("type: custom:mod-card"), 3)
         self.assertIn("icon: mdi:home-assistant", view)
