@@ -105,6 +105,7 @@ class FanEntityIdentityTests(unittest.TestCase):
             )
 
         self.assertTrue(entity.available)
+        self.assertEqual(entity._attr_unique_id, "entry-1_fan_channel_sys")
         self.assertEqual(entity.percentage, 50)
         self.assertEqual(entity.extra_state_attributes["控制后端"], "llled")
 

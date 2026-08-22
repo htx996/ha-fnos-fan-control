@@ -5,7 +5,7 @@ from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DATA_UPDATE_COORDINATOR, DEVICE_ID_NAS, DOMAIN
-from .fan_identity import infer_fan_channel, resolve_fan_record
+from .fan_identity import infer_fan_channel, resolve_fan_record, stable_fan_id
 from .fan_manager import (
     CONTROL_MODE_AUTO,
     CONTROL_MODE_FULL_SPEED,
@@ -40,8 +40,9 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
         super().__init__(coordinator)
         self.fan_id = fan_info["id"]
         self.fan_channel = infer_fan_channel(fan_info)
+        self.entity_fan_id = stable_fan_id(fan_info)
         self._attr_name = f"{fan_info['name']} 控制"
-        self._attr_unique_id = f"{entry_id}_fan_{self.fan_id}"
+        self._attr_unique_id = f"{entry_id}_fan_{self.entity_fan_id}"
         self._attr_icon = "mdi:fan"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, DEVICE_ID_NAS)},

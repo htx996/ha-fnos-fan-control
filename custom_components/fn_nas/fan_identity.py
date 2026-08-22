@@ -34,6 +34,17 @@ def infer_fan_channel(fan: dict | None) -> str | None:
     return None
 
 
+def stable_fan_id(fan: dict) -> str:
+    """Return a backend-independent ID for known physical fan channels."""
+    channel = infer_fan_channel(fan)
+    chip = str(fan.get("chip") or "").strip().lower()
+    if channel and (
+        fan.get("channel") or fan.get("backend") == "llled" or chip == "it8613"
+    ):
+        return f"channel_{channel}"
+    return str(fan["id"])
+
+
 def resolve_fan_record(
     fans: Iterable[dict],
     fan_id: str,

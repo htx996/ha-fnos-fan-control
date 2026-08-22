@@ -9,7 +9,7 @@ from .const import (
     DEVICE_ID_NAS, DATA_UPDATE_COORDINATOR, ICON_FAN, FAN_RPM,
     FAN_PWM, FAN_CONTROL_MODE, FAN_DISCOVERY
 )
-from .fan_identity import infer_fan_channel, resolve_fan_record
+from .fan_identity import infer_fan_channel, resolve_fan_record, stable_fan_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -119,9 +119,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     # 添加风扇监控传感器
     for fan in coordinator.data.get("fans", []):
         fan_id = fan["id"]
+        entity_fan_id = stable_fan_id(fan)
         fan_name = fan.get("name", "风扇")
 
-        rpm_uid = f"{config_entry.entry_id}_fan_{fan_id}_rpm"
+        rpm_uid = f"{config_entry.entry_id}_fan_{entity_fan_id}_rpm"
         if fan.get("rpm") is not None and rpm_uid not in existing_ids:
             entities.append(
                 FanSensor(
@@ -138,7 +139,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             )
             existing_ids.add(rpm_uid)
 
-        pwm_uid = f"{config_entry.entry_id}_fan_{fan_id}_pwm"
+        pwm_uid = f"{config_entry.entry_id}_fan_{entity_fan_id}_pwm"
         if fan.get("pwm_percent") is not None and pwm_uid not in existing_ids:
             entities.append(
                 FanSensor(
@@ -155,7 +156,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             )
             existing_ids.add(pwm_uid)
 
-        mode_uid = f"{config_entry.entry_id}_fan_{fan_id}_mode_sensor"
+        mode_uid = f"{config_entry.entry_id}_fan_{entity_fan_id}_mode_sensor"
         if fan.get("control_mode") is not None and mode_uid not in existing_ids:
             entities.append(
                 FanSensor(

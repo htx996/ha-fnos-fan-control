@@ -85,9 +85,15 @@ class StubEntityRegistry:
     def __init__(self):
         self.entities = {}
         self.removed = []
+        self.updated = []
 
     def async_remove(self, entity_id):
         self.removed.append(entity_id)
+
+    def async_update_entity(self, entity_id, *, new_unique_id):
+        self.updated.append((entity_id, new_unique_id))
+        self.entities[entity_id].unique_id = new_unique_id
+        return self.entities[entity_id]
 
 
 def _install_stubs():
@@ -107,7 +113,7 @@ def _install_stubs():
 
     custom_components = types.ModuleType("custom_components")
     fn_nas = types.ModuleType("custom_components.fn_nas")
-    fn_nas.__path__ = []
+    fn_nas.__path__ = [str(INIT_PATH.parent)]
 
     const_module = types.ModuleType("custom_components.fn_nas.const")
     const_module.DOMAIN = "fn_nas"
@@ -137,6 +143,103 @@ def _install_stubs():
 
 
 class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_fan_registry_migration_keeps_oldest_entities_and_removes_duplicates(self):
+        with patch.dict(sys.modules, _install_stubs()):
+            spec = importlib.util.spec_from_file_location(
+                "custom_components.fn_nas",
+                INIT_PATH,
+            )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["custom_components.fn_nas"] = module
+            spec.loader.exec_module(module)
+
+            hass = StubHass()
+            entry = StubEntry()
+            hass.entity_registry.entities = {
+                "sensor.system_rpm_old": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan3_a1b2c3d4_rpm",
+                    created_at=1,
+                ),
+                "sensor.system_rpm": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_llled_sys_rpm",
+                    created_at=2,
+                ),
+                "sensor.cpu_pwm_old": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan2_a1b2c3d4_pwm",
+                    created_at=1,
+                ),
+                "sensor.cpu_pwm": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_llled_cpu_pwm",
+                    created_at=2,
+                ),
+                "sensor.unrelated": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_system_status",
+                ),
+            }
+
+            module._migrate_fan_entity_registry(
+                hass,
+                entry,
+                [
+                    {"id": "llled_cpu", "channel": "cpu", "backend": "llled"},
+                    {"id": "llled_sys", "channel": "sys", "backend": "llled"},
+                ],
+            )
+
+        self.assertEqual(
+            hass.entity_registry.removed,
+            ["sensor.system_rpm", "sensor.cpu_pwm"],
+        )
+        self.assertEqual(
+            hass.entity_registry.updated,
+            [
+                ("sensor.system_rpm_old", "entry-1_fan_channel_sys_rpm"),
+                ("sensor.cpu_pwm_old", "entry-1_fan_channel_cpu_pwm"),
+            ],
+        )
+
+    async def test_fan_registry_migration_preserves_old_entity_id_when_no_duplicate_exists(self):
+        with patch.dict(sys.modules, _install_stubs()):
+            spec = importlib.util.spec_from_file_location(
+                "custom_components.fn_nas",
+                INIT_PATH,
+            )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["custom_components.fn_nas"] = module
+            spec.loader.exec_module(module)
+
+            hass = StubHass()
+            entry = StubEntry()
+            hass.entity_registry.entities = {
+                "fan.system_fan_control": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan3_a1b2c3d4",
+                )
+            }
+
+            module._migrate_fan_entity_registry(
+                hass,
+                entry,
+                [{"id": "llled_sys", "channel": "sys", "backend": "llled"}],
+            )
+
+        self.assertEqual(hass.entity_registry.removed, [])
+        self.assertEqual(
+            hass.entity_registry.updated,
+            [("fan.system_fan_control", "entry-1_fan_channel_sys")],
+        )
+
     async def test_cleanup_removes_per_fan_mode_selects_replaced_by_llled_global_mode(self):
         with patch.dict(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(

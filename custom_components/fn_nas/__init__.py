@@ -12,8 +12,123 @@ from .const import (
     CONF_HOST, DEFAULT_PORT
 )
 from .coordinator import FlynasCoordinator, UPSDataUpdateCoordinator
+from .fan_identity import infer_fan_channel, stable_fan_id
 
 _LOGGER = logging.getLogger(__name__)
+
+_FAN_ENTITY_SUFFIXES = ("_mode_sensor", "_rpm", "_pwm", "_mode")
+
+
+def _split_fan_unique_id(entry_id: str, unique_id: str) -> tuple[str, str] | None:
+    prefix = f"{entry_id}_fan_"
+    if not unique_id.startswith(prefix):
+        return None
+
+    fan_key = unique_id[len(prefix):]
+    for suffix in _FAN_ENTITY_SUFFIXES:
+        if fan_key.endswith(suffix):
+            return fan_key[: -len(suffix)], suffix
+    return fan_key, ""
+
+
+def _registry_fan_channel(fan_key: str, current_channels: dict[str, str]) -> str | None:
+    if fan_key in current_channels:
+        return current_channels[fan_key]
+
+    channel_match = re.fullmatch(r"(?:channel|llled)_(cpu|sys|sys2)", fan_key)
+    if channel_match:
+        return channel_match.group(1)
+
+    it8613_match = re.fullmatch(r"it8613_fan([23])_.+", fan_key)
+    if it8613_match:
+        return "cpu" if it8613_match.group(1) == "2" else "sys"
+    return None
+
+
+def _fan_unique_id(entry_id: str, fan_key: str, suffix: str) -> str:
+    return f"{entry_id}_fan_{fan_key}{suffix}"
+
+
+def _migrate_fan_entity_registry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    fans: list[dict],
+) -> None:
+    """Migrate LLLED/hwmon duplicates to one stable physical-channel ID."""
+    current_by_channel = {
+        channel: fan
+        for fan in fans
+        if (channel := infer_fan_channel(fan))
+        and stable_fan_id(fan).startswith("channel_")
+    }
+    if not current_by_channel:
+        return
+
+    current_channels = {
+        str(fan.get("id")): channel for channel, fan in current_by_channel.items()
+    }
+    registry = er.async_get(hass)
+    grouped_entries: dict[tuple[str, str], list[tuple[str, object]]] = {}
+
+    for entity_id, registry_entry in list(registry.entities.items()):
+        if (
+            registry_entry.config_entry_id != entry.entry_id
+            or registry_entry.platform != DOMAIN
+        ):
+            continue
+
+        parsed = _split_fan_unique_id(entry.entry_id, registry_entry.unique_id)
+        if parsed is None:
+            continue
+        fan_key, suffix = parsed
+        channel = _registry_fan_channel(fan_key, current_channels)
+        if channel not in current_by_channel:
+            continue
+
+        expected_domain = (
+            "fan" if not suffix else "select" if suffix == "_mode" else "sensor"
+        )
+        if not entity_id.startswith(f"{expected_domain}."):
+            continue
+        grouped_entries.setdefault((channel, suffix), []).append(
+            (entity_id, registry_entry)
+        )
+
+    removed = []
+    migrated = []
+    for (channel, suffix), entries in grouped_entries.items():
+        canonical_key = stable_fan_id(current_by_channel[channel])
+        canonical_unique_id = _fan_unique_id(entry.entry_id, canonical_key, suffix)
+        winner = next(
+            (item for item in entries if item[1].unique_id == canonical_unique_id),
+            None,
+        )
+        if winner is None:
+            dated_entries = [
+                item
+                for item in entries
+                if getattr(item[1], "created_at", None) is not None
+            ]
+            winner = (
+                min(dated_entries, key=lambda item: item[1].created_at)
+                if dated_entries
+                else entries[0]
+            )
+
+        for entity_id, _registry_entry in entries:
+            if entity_id == winner[0]:
+                continue
+            registry.async_remove(entity_id)
+            removed.append(entity_id)
+
+        if winner[1].unique_id != canonical_unique_id:
+            registry.async_update_entity(winner[0], new_unique_id=canonical_unique_id)
+            migrated.append(winner[0])
+
+    if migrated:
+        _LOGGER.info("已迁移风扇实体到稳定通道标识: %s", ", ".join(migrated))
+    if removed:
+        _LOGGER.info("已清理重复的旧风扇实体: %s", ", ".join(removed))
 
 
 def _remove_dxp4800pro_ghost_fan_entities(
@@ -112,6 +227,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass,
         entry,
         coordinator.data.get("fan_diagnostics", {}),
+    )
+    _migrate_fan_entity_registry(
+        hass,
+        entry,
+        coordinator.data.get("fans", []),
     )
     _remove_superseded_llled_mode_entities(
         hass,
