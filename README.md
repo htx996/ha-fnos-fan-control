@@ -89,6 +89,44 @@ https://github.com/htx996/ha-fnos-fan-control
     *   MAC地址（用于网络唤醒）
     *   扫描间隔（推荐≥300秒）
 
+## 仪表盘
+
+仓库提供一套可选的中文 Lovelace 仪表盘，使用实体分类属性自动显示系统、存储卷、硬盘、风扇、UPS、虚拟机和 Docker。硬件数量变化后页面会自动适配，不需要填写 `hwmonX` 或逐个绑定硬盘实体。
+
+### 准备前端卡片
+
+先在 HACS 的“前端”分类安装并启用：
+
+* [`button-card`](https://github.com/custom-cards/button-card)
+* [`auto-entities`](https://github.com/thomasloven/lovelace-auto-entities)
+* [`card-mod`](https://github.com/thomasloven/lovelace-card-mod)
+* [`mini-graph-card`](https://github.com/kalkih/mini-graph-card)
+
+安装或升级本集成并重启 Home Assistant 后，NAS 图片会自动安装到：
+
+```text
+/config/www/community/fn_nas/fn_nas.png
+```
+
+集成只维护这个固定文件，不会覆盖同目录中的其他用户文件。
+
+### 导入卡片模板
+
+1. 打开目标仪表盘，进入编辑模式。
+2. 选择右上角菜单中的“原始配置编辑器”。
+3. 将 [`dashboard/button_card_templates.yaml`](dashboard/button_card_templates.yaml) 的内容合并到仪表盘顶层。
+4. 如果已有 `button_card_templates:`，只合并其中的 `fn_nas_metric` 和 `fn_nas_control`，不要重复创建顶层键，也不要覆盖现有 `views:`。
+
+### 导入页面
+
+1. 在同一仪表盘中新建一个空白视图。
+2. 打开该视图的“以 YAML 编辑”。
+3. 删除自动生成的视图内容，粘贴 [`dashboard/fn_nas_view.yaml`](dashboard/fn_nas_view.yaml) 的全部内容并保存。
+
+主页面上的电源、重启、风扇和容器控制默认只打开实体详情，不会单击后立即执行高风险操作。当前页面会汇总所有已配置的 `fn_nas` 集成条目。
+
+HACS 不会自动修改用户的 Lovelace 仪表盘。后续版本如果更新了页面结构，需要重新合并模板并替换视图 YAML；建议先备份自己对页面做过的调整。
+
 ## ⚠️ 注意事项
 
 *   确保NAS与Home Assistant在同一局域网
@@ -110,6 +148,7 @@ https://github.com/htx996/ha-fnos-fan-control
 *   `1.3.22` 修复 LLLED 与 hwmon 读取状态短暂切换时，风扇 ID 变化导致控制实体变灰、RPM/PWM/控制状态显示“未知”的问题；现有实体唯一 ID 保持不变
 *   `1.3.23` 将 CPU、系统风扇迁移到稳定的物理通道标识；升级重启时优先保留最早创建实体的 `entity_id`，并自动移除同一风扇由旧 hwmon/LLLED 标识产生的“不可用”重复实体
 *   `1.3.24` 使用 `verify` 统一仓库验证命名，移除文件型调试输出和强制 DEBUG，并补充 `ite-it87`、LLLED_FPK 两种风扇接入方案
+*   `1.3.25` 增加可选中文 Lovelace 仪表盘、自动分类实体和原创 NAS 图片资源；不会自动修改用户已有的仪表盘配置
 *   不要同时在 LLLED 页面和 Home Assistant 中反复设置固定转速。两者使用同一 LLLED 控制器，最后一次操作会决定当前模式和 PWM
 *   本仓库不包含或复制 LLLED 的程序、二进制文件或源代码，只通过现有 SSH 层调用用户已经安装的 LLLED 接口
 *   从旧版本升级后如果风扇仍处于全速，请在模式下拉框选择“手动”，集成会自动恢复到 50%；也可以打开对应 fan 实体直接设置 40%-50%

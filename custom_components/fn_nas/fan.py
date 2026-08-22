@@ -6,6 +6,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DATA_UPDATE_COORDINATOR, DEVICE_ID_NAS, DOMAIN
 from .fan_identity import infer_fan_channel, resolve_fan_record, stable_fan_id
+from .dashboard import dashboard_metadata
 from .fan_manager import (
     CONTROL_MODE_AUTO,
     CONTROL_MODE_FULL_SPEED,
@@ -43,6 +44,7 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
         self.entity_fan_id = stable_fan_id(fan_info)
         self._attr_name = f"{fan_info['name']} 控制"
         self._attr_unique_id = f"{entry_id}_fan_{self.entity_fan_id}"
+        self._dashboard_attributes = dashboard_metadata("control", "fan", 20)
         self._attr_icon = "mdi:fan"
         self._attr_device_info = {
             "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
@@ -165,6 +167,7 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
     def extra_state_attributes(self):
         fan = self._fan_data or {}
         return {
+            **self._dashboard_attributes,
             "风扇ID": self.fan_id,
             "当前风扇ID": fan.get("id"),
             "控制后端": fan.get("backend", "hwmon"),

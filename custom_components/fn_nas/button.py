@@ -5,6 +5,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     DOMAIN, DATA_UPDATE_COORDINATOR, DEVICE_ID_NAS, CONF_ENABLE_DOCKER
 )
+from .dashboard import dashboard_metadata
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ class RebootButton(CoordinatorEntity, ButtonEntity):
         super().__init__(coordinator)
         self._attr_name = "重启"
         self._attr_unique_id = f"{entry_id}_flynas_reboot"
+        self._dashboard_attributes = dashboard_metadata("control", "reboot", 20)
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_device_info = {
             "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
@@ -66,6 +68,7 @@ class RebootButton(CoordinatorEntity, ButtonEntity):
     @property
     def extra_state_attributes(self):
         return {
+            **self._dashboard_attributes,
             "提示": "按下此按钮将重启飞牛NAS系统"
         }
 
@@ -76,6 +79,7 @@ class VMRebootButton(CoordinatorEntity, ButtonEntity):
         self.vm_title = vm_title
         self._attr_name = f"{vm_title} 重启"
         self._attr_unique_id = f"{entry_id}_flynas_vm_{vm_name}_reboot"
+        self._attr_extra_state_attributes = dashboard_metadata("vm", "reboot", 30)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"vm_{vm_name}")},
             "name": vm_title,
@@ -111,6 +115,7 @@ class DockerContainerRestartButton(CoordinatorEntity, ButtonEntity):
         self.safe_name = safe_name
         self._attr_name = f"{container_name} 重启"
         self._attr_unique_id = f"{entry_id}_docker_{safe_name}_restart"
+        self._dashboard_attributes = dashboard_metadata("docker", "restart", 30)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"docker_{safe_name}")},
             "name": container_name,
@@ -159,6 +164,7 @@ class DockerContainerRestartButton(CoordinatorEntity, ButtonEntity):
     @property
     def extra_state_attributes(self):
         return {
+            **self._dashboard_attributes,
             "容器名称": self.container_name,
             "操作类型": "重启容器",
             "提示": "重启操作可能需要一些时间完成"

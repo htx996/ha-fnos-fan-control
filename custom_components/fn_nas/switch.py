@@ -4,6 +4,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, DATA_UPDATE_COORDINATOR, CONF_MAC, DEVICE_ID_NAS
+from .dashboard import dashboard_metadata
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class PowerSwitch(CoordinatorEntity, SwitchEntity):
         self.config_entry = config_entry
         self._attr_name = "电源"
         self._attr_unique_id = "flynas_power"
+        self._dashboard_attributes = dashboard_metadata("control", "power", 10)
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_device_info = {
             "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
@@ -93,6 +95,7 @@ class PowerSwitch(CoordinatorEntity, SwitchEntity):
     def extra_state_attributes(self):
         mac = self.config_entry.data.get(CONF_MAC, "未配置")
         return {
+            **self._dashboard_attributes,
             "控制方式": "关机使用命令关机，开机使用网络唤醒",
             "MAC地址": mac,
             "警告": "网络唤醒需要提前配置MAC地址",
@@ -106,6 +109,7 @@ class VMSwitch(CoordinatorEntity, SwitchEntity):
         self.vm_title = vm_title
         self._attr_name = f"{vm_title} 电源"
         self._attr_unique_id = f"flynas_vm_{vm_name}_switch"
+        self._dashboard_attributes = dashboard_metadata("vm", "power", 20)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"vm_{vm_name}")},
             "name": vm_title,
@@ -155,10 +159,11 @@ class VMSwitch(CoordinatorEntity, SwitchEntity):
         for vm in self.coordinator.data.get("vms", []):
             if vm["name"] == self.vm_name:
                 return {
+                    **self._dashboard_attributes,
                     "虚拟机ID": vm["id"],
                     "原始状态": vm["state"]
                 }
-        return {}
+        return self._dashboard_attributes
 
 # 添加DockerContainerSwitch类
 class DockerContainerSwitch(CoordinatorEntity, SwitchEntity):
@@ -167,6 +172,9 @@ class DockerContainerSwitch(CoordinatorEntity, SwitchEntity):
         self.container_name = container_name
         self._attr_name = f"{container_name} 容器"
         self._attr_unique_id = f"docker_{safe_name}_switch"
+        self._attr_extra_state_attributes = dashboard_metadata(
+            "docker", "power", 20
+        )
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"docker_{safe_name}")},
             "name": container_name,

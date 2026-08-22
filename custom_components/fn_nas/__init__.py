@@ -12,6 +12,7 @@ from .const import (
     CONF_HOST, DEFAULT_PORT
 )
 from .coordinator import FlynasCoordinator, UPSDataUpdateCoordinator
+from .frontend import async_install_dashboard_assets
 from .fan_identity import infer_fan_channel, stable_fan_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -202,6 +203,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         "ups_coordinator": ups_coordinator,
         CONF_ENABLE_DOCKER: coordinator.config.get(CONF_ENABLE_DOCKER, False)
     }
+
+    try:
+        copied_assets = await async_install_dashboard_assets(hass)
+        if copied_assets:
+            _LOGGER.info("已安装飞牛NAS仪表盘资源: %s", ", ".join(copied_assets))
+    except (OSError, AttributeError) as error:
+        # Dashboard resources are optional and must never block entity setup.
+        _LOGGER.warning("飞牛NAS仪表盘资源安装失败，不影响集成运行: %s", error)
 
     try:
         await coordinator.async_config_entry_first_refresh()

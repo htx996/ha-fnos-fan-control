@@ -126,6 +126,12 @@ def _install_stubs():
     coordinator_module = types.ModuleType("custom_components.fn_nas.coordinator")
     coordinator_module.FlynasCoordinator = StubFlynasCoordinator
     coordinator_module.UPSDataUpdateCoordinator = StubUPSDataUpdateCoordinator
+    frontend_module = types.ModuleType("custom_components.fn_nas.frontend")
+
+    async def async_install_dashboard_assets(_hass):
+        return []
+
+    frontend_module.async_install_dashboard_assets = async_install_dashboard_assets
 
     return {
         "asyncssh": asyncssh,
@@ -139,6 +145,7 @@ def _install_stubs():
         "custom_components.fn_nas": fn_nas,
         "custom_components.fn_nas.const": const_module,
         "custom_components.fn_nas.coordinator": coordinator_module,
+        "custom_components.fn_nas.frontend": frontend_module,
     }
 
 

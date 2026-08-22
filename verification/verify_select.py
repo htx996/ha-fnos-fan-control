@@ -122,6 +122,10 @@ class FanModeSelectVerifications(VerifyCase):
             self.assertIsInstance(entity, module.LLLEDFanModeSelect)
             self.assertEqual(entity.current_option, "手动")
             self.assertEqual(entity._attr_unique_id, "entry-1_llled_fan_control_mode")
+            self.assertEqual(
+                entity.extra_state_attributes["fn_nas_dashboard_role"],
+                "global_fan_mode",
+            )
 
             await entity.async_select_option("自动")
 

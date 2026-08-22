@@ -10,6 +10,7 @@ from .const import (
     FAN_PWM, FAN_CONTROL_MODE, FAN_DISCOVERY
 )
 from .fan_identity import infer_fan_channel, resolve_fan_record, stable_fan_id
+from .dashboard import dashboard_metadata
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -352,6 +353,14 @@ class DiskSensor(CoordinatorEntity, SensorEntity):
         self._attr_native_unit_of_measurement = unit
         self._attr_icon = icon
         self.disk_info = disk_info
+        role_by_type = {
+            HDD_TEMP: "temperature",
+            HDD_HEALTH: "health",
+            HDD_STATUS: "status",
+        }
+        self._dashboard_attributes = dashboard_metadata(
+            "disk", role_by_type.get(sensor_type, "status"), 20
+        )
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"disk_{device_id}")},
             "name": disk_info.get("model", "未知硬盘"),
@@ -395,6 +404,7 @@ class DiskSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         return {
+            **self._dashboard_attributes,
             ATTR_DISK_MODEL: self.disk_info.get("model", "未知"),
             ATTR_SERIAL_NO: self.disk_info.get("serial", "未知"),
             ATTR_POWER_ON_HOURS: self.disk_info.get("power_on_hours", "未知"),
@@ -417,6 +427,7 @@ class SystemSensor(CoordinatorEntity, SensorEntity):
             "manufacturer": "飞牛"
         }
         self._last_uptime = None
+        self._dashboard_attributes = dashboard_metadata("system", "status", 10)
     
     @property
     def native_value(self):
@@ -447,6 +458,7 @@ class SystemSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self):
         system_data = self.coordinator.data.get("system", {})
         return {
+            **self._dashboard_attributes,
             "运行时间": system_data.get("uptime", "未知"),
             "系统状态": system_data.get("status", "unknown"),
             "主机地址": self.coordinator.host,
@@ -467,6 +479,9 @@ class CPUTempSensor(CoordinatorEntity, SensorEntity):
             "manufacturer": "飞牛"
         }
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
+        self._attr_extra_state_attributes = dashboard_metadata(
+            "system", "cpu_temperature", 20
+        )
     
     @property
     def native_value(self):
@@ -502,6 +517,9 @@ class MoboTempSensor(CoordinatorEntity, SensorEntity):
             "manufacturer": "飞牛"
         }
         self._attr_device_class = SensorDeviceClass.TEMPERATURE
+        self._attr_extra_state_attributes = dashboard_metadata(
+            "system", "motherboard_temperature", 30
+        )
     
     @property
     def native_value(self):
@@ -545,6 +563,14 @@ class FanSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = unique_id
         self._attr_native_unit_of_measurement = unit
         self._attr_icon = icon
+        role_by_type = {
+            FAN_RPM: "rpm",
+            FAN_PWM: "pwm",
+            FAN_CONTROL_MODE: "mode",
+        }
+        self._dashboard_attributes = dashboard_metadata(
+            "fan", role_by_type.get(sensor_type, "status"), 20
+        )
         self._attr_device_info = {
             "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
             "name": "飞牛NAS系统监控",
@@ -580,6 +606,7 @@ class FanSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self):
         fan = self._fan_data or {}
         return {
+            **self._dashboard_attributes,
             "风扇ID": self.fan_id,
             "当前风扇ID": fan.get("id"),
             "LLLED通道": infer_fan_channel(fan) or self.fan_channel,
@@ -602,6 +629,9 @@ class FanDiscoverySensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{entry_id}_fan_discovery_status"
         self._attr_icon = "mdi:fan-alert"
         self.sensor_type = FAN_DISCOVERY
+        self._dashboard_attributes = dashboard_metadata(
+            "diagnostic", "fan_discovery", 100
+        )
         self._attr_device_info = {
             "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
             "name": "飞牛NAS系统监控",
@@ -618,6 +648,7 @@ class FanDiscoverySensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self):
         diagnostics = self.coordinator.data.get("fan_diagnostics", {})
         return {
+            **self._dashboard_attributes,
             "来源": diagnostics.get("source", "none"),
             "风扇数量": diagnostics.get("fan_count", 0),
             "hwmon记录数": diagnostics.get("hwmon_entry_count", 0),
@@ -654,6 +685,7 @@ class UPSSensor(CoordinatorEntity, SensorEntity):
         self._attr_native_unit_of_measurement = unit
         self._attr_icon = icon
         self.data_key = data_key
+        self._dashboard_attributes = dashboard_metadata("ups", data_key, 20)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, "flynas_ups")},
             "name": "飞牛NAS UPS",
@@ -674,6 +706,7 @@ class UPSSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         attributes = {
+            **self._dashboard_attributes,
             "最后更新时间": self.coordinator.data.get("last_update", "未知"),
             "UPS类型": self.coordinator.data.get("ups_type", "未知")
         }
@@ -693,6 +726,7 @@ class VMStatusSensor(CoordinatorEntity, SensorEntity):
         self.vm_title = vm_title
         self._attr_name = f"{vm_title} 状态"
         self._attr_unique_id = f"{entry_id}_flynas_vm_{vm_name}_status"  # 使用entry_id确保唯一性
+        self._attr_extra_state_attributes = dashboard_metadata("vm", "status", 10)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"vm_{vm_name}")},
             "name": vm_title,
@@ -735,6 +769,7 @@ class DockerContainerStatusSensor(CoordinatorEntity, SensorEntity):
         self.container_name = container_name
         self._attr_name = f"{container_name} 状态"
         self._attr_unique_id = f"{entry_id}_docker_{safe_name}_status"
+        self._attr_extra_state_attributes = dashboard_metadata("docker", "status", 10)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"docker_{safe_name}")},
             "name": container_name,
@@ -771,6 +806,9 @@ class MemoryAvailableSensor(CoordinatorEntity, SensorEntity):
             "manufacturer": "飞牛"
         }
         self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._dashboard_attributes = dashboard_metadata(
+            "system", "memory_available", 40
+        )
     
     @property
     def native_value(self):
@@ -807,6 +845,7 @@ class MemoryAvailableSensor(CoordinatorEntity, SensorEntity):
             mem_used_gb = None
             
         return {
+            **self._dashboard_attributes,
             "总内存 (GB)": mem_total_gb,
             "已用内存 (GB)": mem_used_gb
         }
@@ -820,6 +859,9 @@ class VolumeAvailableSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = unique_id
         self._attr_icon = icon
         self.mount_point = mount_point
+        self._dashboard_attributes = dashboard_metadata(
+            "storage", "volume_available", 10
+        )
         
         # 设备信息，归属到飞牛NAS系统
         self._attr_device_info = {
@@ -871,6 +913,7 @@ class VolumeAvailableSensor(CoordinatorEntity, SensorEntity):
         vol_info = volumes.get(self.mount_point, {})
         
         return {
+            **self._dashboard_attributes,
             "挂载点": self.mount_point,
             "文件系统": vol_info.get("filesystem", "未知"),
             "总容量": vol_info.get("size", "未知"),

@@ -5,6 +5,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DATA_UPDATE_COORDINATOR, DEVICE_ID_NAS, DOMAIN
 from .fan_identity import infer_fan_channel, resolve_fan_record, stable_fan_id
+from .dashboard import dashboard_metadata
 from .fan_manager import (
     CONTROL_MODE_AUTO,
     CONTROL_MODE_FULL_SPEED,
@@ -44,6 +45,9 @@ class LLLEDFanModeSelect(CoordinatorEntity, SelectEntity):
         super().__init__(coordinator)
         self._attr_name = "风扇控制模式"
         self._attr_unique_id = f"{entry_id}_llled_fan_control_mode"
+        self._dashboard_attributes = dashboard_metadata(
+            "control", "global_fan_mode", 10
+        )
         self._attr_icon = "mdi:fan-auto"
         self._attr_options = coordinator.data["fan_control"].get(
             "available_modes", FAN_MODE_OPTIONS
@@ -82,6 +86,7 @@ class LLLEDFanModeSelect(CoordinatorEntity, SelectEntity):
     def extra_state_attributes(self):
         control = self._control_data
         return {
+            **self._dashboard_attributes,
             "控制后端": "LLLED",
             "温控守护进程": "运行中" if control.get("curve_running") else "已停止",
             "原厂曲线": control.get("stock_profile"),
@@ -104,6 +109,7 @@ class FanModeSelect(CoordinatorEntity, SelectEntity):
         self.entity_fan_id = stable_fan_id(fan_info)
         self._attr_name = f"{fan_info['name']} 模式"
         self._attr_unique_id = f"{entry_id}_fan_{self.entity_fan_id}_mode"
+        self._dashboard_attributes = dashboard_metadata("control", "fan_mode", 30)
         self._attr_icon = "mdi:tune"
         self._attr_options = fan_info.get("available_modes", FAN_MODE_OPTIONS)
         self._attr_device_info = {
@@ -153,6 +159,7 @@ class FanModeSelect(CoordinatorEntity, SelectEntity):
     def extra_state_attributes(self):
         fan = self._fan_data or {}
         return {
+            **self._dashboard_attributes,
             "风扇ID": self.fan_id,
             "当前风扇ID": fan.get("id"),
             "LLLED通道": infer_fan_channel(fan) or self.fan_channel,

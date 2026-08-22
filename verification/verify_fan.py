@@ -108,3 +108,7 @@ class FanEntityIdentityVerifications(VerifyCase):
         self.assertEqual(entity._attr_unique_id, "entry-1_fan_channel_sys")
         self.assertEqual(entity.percentage, 50)
         self.assertEqual(entity.extra_state_attributes["控制后端"], "llled")
+        self.assertEqual(
+            entity.extra_state_attributes["fn_nas_dashboard_category"],
+            "control",
+        )

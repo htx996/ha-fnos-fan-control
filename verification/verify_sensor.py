@@ -231,6 +231,14 @@ class FanDiscoverySensorVerifications(VerifyCase):
             )
 
         self.assertEqual(entity.native_value, 2070)
+        self.assertEqual(
+            entity.extra_state_attributes["fn_nas_dashboard_category"],
+            "fan",
+        )
+        self.assertEqual(
+            entity.extra_state_attributes["fn_nas_dashboard_role"],
+            "rpm",
+        )
 
     def verify_fan_sensor_follows_channel_when_llled_id_becomes_hwmon_id(self):
         with patch_modules(sys.modules, _install_stubs()):
