@@ -94,6 +94,19 @@ class StubCoordinator:
                 }
             ],
             "fan_service_logs": ["Started PWM fan control."],
+            "fan_startup_script": {
+                "path": "/usr/trim/bin/pwm-fancontrol.sh",
+                "syntax": "ok",
+                "relevant_lines": [
+                    {"line": 8, "text": "modprobe it87 force_id=0x8613"}
+                ],
+            },
+            "it87_module_info": {
+                "filename": "/lib/modules/6.18.18/kernel/drivers/hwmon/it87.ko",
+                "parameters": ["force_id:Override chip ID"],
+                "dry_run": ["insmod /lib/modules/6.18.18/kernel/drivers/hwmon/it87.ko"],
+            },
+            "fan_kernel_logs": ["it87: Found IT8613E chip at 0xa30"],
             "fan_control_app": {
                 "installed": False,
                 "listening": False,
@@ -196,6 +209,18 @@ class FanDiscoverySensorTests(unittest.TestCase):
             "/proc/it86/fan",
         )
         self.assertEqual(entity.extra_state_attributes["风扇服务日志"], ["Started PWM fan control."])
+        self.assertEqual(
+            entity.extra_state_attributes["风扇启动脚本"]["relevant_lines"][0]["line"],
+            8,
+        )
+        self.assertEqual(
+            entity.extra_state_attributes["it87模块信息"]["parameters"],
+            ["force_id:Override chip ID"],
+        )
+        self.assertEqual(
+            entity.extra_state_attributes["风扇内核日志"],
+            ["it87: Found IT8613E chip at 0xa30"],
+        )
         self.assertFalse(entity.extra_state_attributes["风扇控制应用"]["installed"])
         self.assertEqual(entity.extra_state_attributes["诊断工具"], {"sensors-detect": True})
 

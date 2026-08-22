@@ -476,6 +476,75 @@ class FanManager:
                 break
         return logs
 
+    def parse_fan_startup_script(self, output: str) -> dict:
+        """Parse metadata and redacted relevant lines from the fnOS fan script."""
+        script = {}
+        relevant_lines = []
+        numeric_fields = {"size"}
+
+        for line in output.splitlines():
+            if line.startswith("fanscript\t"):
+                parts = (line.split("\t", 2) + ["", "", ""])[:3]
+                _record_type, key, value = parts
+                if key in {"path", "size", "mode", "owner", "sha256", "syntax"}:
+                    parsed_value = self._to_int(value) if key in numeric_fields else value.strip()[:240]
+                    if parsed_value is not None and parsed_value != "":
+                        script[key] = parsed_value
+            elif line.startswith("fanscriptline\t"):
+                parts = (line.split("\t", 2) + ["", "", ""])[:3]
+                _record_type, line_number, text = parts
+                parsed_line_number = self._to_int(line_number)
+                text = text.strip()
+                if parsed_line_number is not None and text:
+                    relevant_lines.append({"line": parsed_line_number, "text": text[:240]})
+                if len(relevant_lines) >= 80:
+                    break
+
+        if relevant_lines:
+            script["relevant_lines"] = relevant_lines
+        return script
+
+    def parse_it87_module_info(self, output: str) -> dict:
+        """Parse installed it87 metadata and dry-run module loading output."""
+        info = {}
+        parameters = []
+        dry_run = []
+
+        for line in output.splitlines():
+            if line.startswith("it87info\t"):
+                parts = (line.split("\t", 2) + ["", "", ""])[:3]
+                _record_type, key, value = parts
+                value = value.strip()
+                if key in {"filename", "version", "description", "vermagic"} and value:
+                    info[key] = value[:240]
+            elif line.startswith("it87parm\t"):
+                value = line.split("\t", 1)[1].strip()
+                if value and len(parameters) < 40:
+                    parameters.append(value[:240])
+            elif line.startswith("it87dry\t"):
+                value = line.split("\t", 1)[1].strip()
+                if value and len(dry_run) < 20:
+                    dry_run.append(value[:240])
+
+        if parameters:
+            info["parameters"] = parameters
+        if dry_run:
+            info["dry_run"] = dry_run
+        return info
+
+    def parse_fan_kernel_logs(self, output: str) -> list[str]:
+        """Parse bounded kernel messages related to fan controller discovery."""
+        logs = []
+        for line in output.splitlines():
+            if not line.startswith("kernellog\t"):
+                continue
+            message = line.split("\t", 1)[1].strip()
+            if message:
+                logs.append(message[:240])
+            if len(logs) >= 40:
+                break
+        return logs
+
     def parse_fan_control_app(self, output: str) -> dict:
         """Parse the optional fnOS fan-control FPK availability."""
         app = {
@@ -841,6 +910,69 @@ for path in /proc/it86 /proc/it86/fan /proc/it86/startup /sys/module/ug_it86x_cp
     printf "vendor\t%s\t%s\t%s\t%s\n" "$path" "$interface_type" "$readable" "$writable"
 done
 
+fan_script="/usr/trim/bin/pwm-fancontrol.sh"
+if [ -f "$fan_script" ]; then
+    printf "fanscript\tpath\t%s\n" "$fan_script"
+    script_size="$(stat -c '%s' "$fan_script" 2>/dev/null || true)"
+    script_mode="$(stat -c '%a' "$fan_script" 2>/dev/null || true)"
+    script_owner="$(stat -c '%U:%G' "$fan_script" 2>/dev/null || true)"
+    [ -n "$script_size" ] && printf "fanscript\tsize\t%s\n" "$script_size"
+    [ -n "$script_mode" ] && printf "fanscript\tmode\t%s\n" "$script_mode"
+    [ -n "$script_owner" ] && printf "fanscript\towner\t%s\n" "$script_owner"
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        script_sha256="$(sha256sum "$fan_script" 2>/dev/null | awk '{print $1}')"
+        [ -n "$script_sha256" ] && printf "fanscript\tsha256\t%s\n" "$script_sha256"
+    fi
+
+    syntax="unavailable"
+    if command -v bash >/dev/null 2>&1; then
+        if bash -n "$fan_script" >/dev/null 2>&1; then syntax="ok"; else syntax="error"; fi
+    elif command -v sh >/dev/null 2>&1; then
+        if sh -n "$fan_script" >/dev/null 2>&1; then syntax="ok"; else syntax="error"; fi
+    fi
+    printf "fanscript\tsyntax\t%s\n" "$syntax"
+
+    awk '
+        {
+            lower = tolower($0)
+            if (lower ~ /(password|passwd|token|secret|private[_-]?key|api[_-]?key)/ || lower ~ /:\/\/.*@/) next
+            if (lower ~ /(modprobe|insmod|rmmod|it87|it8613|fan|pwm|hwmon|sensors|\/sys\/|\/proc\/)/) {
+                gsub(/\t/, " ", $0)
+                printf "fanscriptline\t%d\t%s\n", NR, substr($0, 1, 240)
+            }
+        }
+    ' "$fan_script" 2>/dev/null | head -n 80
+fi
+
+if command -v modinfo >/dev/null 2>&1 && modinfo it87 >/dev/null 2>&1; then
+    for field in filename version description vermagic; do
+        value="$(modinfo -F "$field" it87 2>/dev/null | head -n 1 | sanitize_value)"
+        [ -n "$value" ] && printf "it87info\t%s\t%s\n" "$field" "$value"
+    done
+    modinfo -p it87 2>/dev/null | head -n 40 | while IFS= read -r parameter; do
+        parameter="$(printf "%s" "$parameter" | sanitize_value)"
+        [ -n "$parameter" ] && printf "it87parm\t%s\n" "$parameter"
+    done
+fi
+
+if command -v modprobe >/dev/null 2>&1; then
+    modprobe -n -v it87 2>/dev/null | head -n 20 | while IFS= read -r dry_run; do
+        dry_run="$(printf "%s" "$dry_run" | sanitize_value)"
+        [ -n "$dry_run" ] && printf "it87dry\t%s\n" "$dry_run"
+    done
+fi
+
+if command -v dmesg >/dev/null 2>&1; then
+    dmesg 2>/dev/null \
+        | grep -Ei '(it87|it8613|super.?io|pwm-fan|fan control|hwmon)' \
+        | tail -n 40 \
+        | while IFS= read -r kernel_message; do
+            kernel_message="$(printf "%s" "$kernel_message" | sanitize_value)"
+            [ -n "$kernel_message" ] && printf "kernellog\t%s\n" "$kernel_message"
+        done
+fi
+
 app_installed=0
 [ -d /var/apps/fan-control ] && app_installed=1
 app_listening=0
@@ -943,6 +1075,9 @@ fi
             "fan_service_details": {},
             "vendor_fan_interfaces": [],
             "fan_service_logs": [],
+            "fan_startup_script": {},
+            "it87_module_info": {},
+            "fan_kernel_logs": [],
             "fan_control_app": {
                 "installed": False,
                 "listening": False,
@@ -975,6 +1110,9 @@ fi
         fan_service_details = self.parse_fan_service_details(inventory_output)
         vendor_interfaces = self.parse_vendor_fan_interfaces(inventory_output)
         fan_service_logs = self.parse_fan_service_logs(inventory_output)
+        fan_startup_script = self.parse_fan_startup_script(inventory_output)
+        it87_module_info = self.parse_it87_module_info(inventory_output)
+        fan_kernel_logs = self.parse_fan_kernel_logs(inventory_output)
         fan_control_app = self.parse_fan_control_app(inventory_output)
         diagnostic_tools = self.parse_diagnostic_tools(inventory_output)
 
@@ -987,7 +1125,7 @@ fi
             if "pwm-fancontrol.service" in fan_service_details:
                 hint = (
                     "检测到 pwm-fancontrol.service，但它没有向标准 hwmon 暴露风扇；"
-                    "请查看风扇服务详情、厂商风扇接口和风扇服务日志。"
+                    "请查看风扇启动脚本、it87模块信息和风扇内核日志。"
                 )
         if error:
             hint = f"扫描命令异常: {error}"
@@ -1014,6 +1152,9 @@ fi
             "fan_service_details": fan_service_details,
             "vendor_fan_interfaces": vendor_interfaces,
             "fan_service_logs": fan_service_logs,
+            "fan_startup_script": fan_startup_script,
+            "it87_module_info": it87_module_info,
+            "fan_kernel_logs": fan_kernel_logs,
             "fan_control_app": fan_control_app,
             "diagnostic_tools": diagnostic_tools,
             "hint": hint,

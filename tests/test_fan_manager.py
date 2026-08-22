@@ -166,6 +166,20 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
                 "vendor\t/proc/it86\tdirectory\t1\t1",
                 "vendor\t/proc/it86/fan\tfile\t1\t1",
                 "servicelog\tpwm-fancontrol.service\tStarted PWM fan control.",
+                "fanscript\tpath\t/usr/trim/bin/pwm-fancontrol.sh",
+                "fanscript\tsize\t842",
+                "fanscript\tmode\t755",
+                "fanscript\towner\troot:root",
+                "fanscript\tsha256\tabc123",
+                "fanscript\tsyntax\tok",
+                "fanscriptline\t8\tmodprobe it87 force_id=0x8613",
+                "fanscriptline\t12\tsensors -s",
+                "it87info\tfilename\t/lib/modules/6.18.18/kernel/drivers/hwmon/it87.ko",
+                "it87info\tversion\t1.0",
+                "it87info\tvermagic\t6.18.18 SMP mod_unload",
+                "it87parm\tforce_id:Override chip ID",
+                "it87dry\tinsmod /lib/modules/6.18.18/kernel/drivers/hwmon/it87.ko",
+                "kernellog\tit87: Found IT8613E chip at 0xa30",
                 "app\tfan-control\t1\t1\t9511",
                 'api\t9511\t{"auth_enabled": true, "authenticated": false}',
                 "tool\tsensors-detect\t1",
@@ -228,6 +242,35 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             diagnostics["fan_service_logs"],
             ["Started PWM fan control."],
+        )
+        self.assertEqual(
+            diagnostics["fan_startup_script"],
+            {
+                "path": "/usr/trim/bin/pwm-fancontrol.sh",
+                "size": 842,
+                "mode": "755",
+                "owner": "root:root",
+                "sha256": "abc123",
+                "syntax": "ok",
+                "relevant_lines": [
+                    {"line": 8, "text": "modprobe it87 force_id=0x8613"},
+                    {"line": 12, "text": "sensors -s"},
+                ],
+            },
+        )
+        self.assertEqual(
+            diagnostics["it87_module_info"],
+            {
+                "filename": "/lib/modules/6.18.18/kernel/drivers/hwmon/it87.ko",
+                "version": "1.0",
+                "vermagic": "6.18.18 SMP mod_unload",
+                "parameters": ["force_id:Override chip ID"],
+                "dry_run": ["insmod /lib/modules/6.18.18/kernel/drivers/hwmon/it87.ko"],
+            },
+        )
+        self.assertEqual(
+            diagnostics["fan_kernel_logs"],
+            ["it87: Found IT8613E chip at 0xa30"],
         )
         self.assertEqual(
             diagnostics["fan_control_app"],
