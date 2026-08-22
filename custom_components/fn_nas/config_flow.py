@@ -195,13 +195,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     """处理飞牛NAS的选项流程"""
     
     def __init__(self, config_entry):
-        self.config_entry = config_entry
+        # Newer Home Assistant versions expose config_entry as a read-only
+        # property on OptionsFlow, so keep our backwards-compatible reference
+        # under a private name instead of assigning self.config_entry.
+        self._config_entry = config_entry
     
     async def async_step_init(self, user_input=None):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
         
-        data = self.config_entry.options or self.config_entry.data
+        data = self._config_entry.options or self._config_entry.data
         
         options = vol.Schema({
             vol.Optional(
@@ -227,6 +230,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=options,
             description_placeholders={
-                "config_entry": self.config_entry.title
+                "config_entry": self._config_entry.title
             }
         )
