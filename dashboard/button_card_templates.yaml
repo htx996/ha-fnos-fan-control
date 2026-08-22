@@ -46,12 +46,11 @@ button_card_templates:
     styles:
       card:
         - min-height: 68px
-        - padding: 7px 8px
-        - border-radius: 8px
-        - background: rgba(255, 255, 255, 0.035)
-        - border: 1px solid rgba(255, 255, 255, 0.055)
-        - box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.028)
-        - backdrop-filter: blur(16px) saturate(125%)
+        - padding: 5px 6px
+        - border-radius: 0
+        - background: transparent
+        - border: none
+        - box-shadow: none
       grid:
         - grid-template-areas: '"i n" "i s" "meter meter"'
         - grid-template-columns: 34px 1fr
@@ -72,7 +71,7 @@ button_card_templates:
       name:
         - justify-self: start
         - align-self: end
-        - color: "#9da5ad"
+        - color: "#8fa1aa"
         - font-size: 11px
         - line-height: 14px
         - white-space: normal
@@ -80,7 +79,7 @@ button_card_templates:
       state:
         - justify-self: start
         - align-self: start
-        - color: "#f5f5f7"
+        - color: "#f5f7f8"
         - font-size: |
             [[[
               const role = entity.attributes.fn_nas_dashboard_role;
@@ -99,9 +98,6 @@ button_card_templates:
     extra_styles: |
       .fn-track { width: 100%; height: 4px; overflow: hidden; border-radius: 2px; background: rgba(174, 187, 194, 0.14); }
       .fn-track > span { display: block; height: 100%; border-radius: 2px; }
-      ha-card { transition: transform 120ms ease-out, background-color 180ms ease; }
-      ha-card:active { transform: scale(0.985); background: rgba(255, 255, 255, 0.055); }
-      @media (prefers-reduced-motion: reduce) { ha-card { transition: none; } }
     state:
       - value: unavailable
         styles:
@@ -142,12 +138,11 @@ button_card_templates:
     styles:
       card:
         - min-height: 82px
-        - padding: 8px
-        - border-radius: 8px
-        - background: rgba(255, 255, 255, 0.035)
-        - border: 1px solid rgba(255, 255, 255, 0.055)
-        - box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.028)
-        - backdrop-filter: blur(16px) saturate(125%)
+        - padding: 6px
+        - border-radius: 0
+        - background: transparent
+        - border: none
+        - box-shadow: none
       grid:
         - grid-template-areas: '"i n" "i s" "usage usage"'
         - grid-template-columns: 36px 1fr
@@ -167,7 +162,7 @@ button_card_templates:
         - font-size: 12px
       state:
         - justify-self: start
-        - color: "#f5f5f7"
+        - color: "#f5f7f8"
         - font-size: 17px
         - font-weight: 650
       custom_fields:
@@ -178,9 +173,6 @@ button_card_templates:
       .fn-volume-meta { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; color: #8fa1aa; font-size: 10px; }
       .fn-volume-track { width: 100%; height: 4px; overflow: hidden; border-radius: 2px; background: rgba(174, 187, 194, 0.14); }
       .fn-volume-track > span { display: block; height: 100%; border-radius: 4px; background: #3bc48d; }
-      ha-card { transition: transform 120ms ease-out, background-color 180ms ease; }
-      ha-card:active { transform: scale(0.985); background: rgba(255, 255, 255, 0.055); }
-      @media (prefers-reduced-motion: reduce) { ha-card { transition: none; } }
 
   fn_nas_disk:
     show_icon: true
@@ -226,12 +218,11 @@ button_card_templates:
     styles:
       card:
         - min-height: 88px
-        - padding: 8px
-        - border-radius: 8px
-        - background: rgba(255, 255, 255, 0.035)
-        - border: 1px solid rgba(255, 255, 255, 0.055)
-        - box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.028)
-        - backdrop-filter: blur(16px) saturate(125%)
+        - padding: 6px
+        - border-radius: 0
+        - background: transparent
+        - border: none
+        - box-shadow: none
       grid:
         - grid-template-areas: '"i n" "i s" "details details" "health health"'
         - grid-template-columns: 44px 1fr
@@ -248,7 +239,7 @@ button_card_templates:
               const color = temp >= 60 ? '#ef6b68' : temp >= 48 ? '#e7c64f' : '#8bd450';
               return `conic-gradient(${color} 0deg ${angle}deg, rgba(174,187,194,0.12) ${angle}deg 360deg)`;
             ]]]
-        - box-shadow: inset 0 0 0 4px #0c1114
+        - box-shadow: inset 0 0 0 4px #11181c
       icon:
         - width: 20px
         - color: "#dce6ea"
@@ -263,7 +254,7 @@ button_card_templates:
         - text-align: left
       state:
         - justify-self: start
-        - color: "#f5f5f7"
+        - color: "#f5f7f8"
         - font-size: 20px
         - font-weight: 650
       custom_fields:
@@ -277,9 +268,6 @@ button_card_templates:
           - font-size: 11px
     extra_styles: |
       .fn-health-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
-      ha-card { transition: transform 120ms ease-out, background-color 180ms ease; }
-      ha-card:active { transform: scale(0.985); background: rgba(255, 255, 255, 0.055); }
-      @media (prefers-reduced-motion: reduce) { ha-card { transition: none; } }
 
   fn_nas_fan:
     show_icon: true
@@ -320,12 +308,11 @@ button_card_templates:
     styles:
       card:
         - min-height: 86px
-        - padding: 8px
-        - border-radius: 8px
-        - background: rgba(255, 255, 255, 0.035)
-        - border: 1px solid rgba(255, 255, 255, 0.055)
-        - box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.028)
-        - backdrop-filter: blur(16px) saturate(125%)
+        - padding: 6px
+        - border-radius: 0
+        - background: transparent
+        - border: none
+        - box-shadow: none
       grid:
         - grid-template-areas: '"i n" "i s" "mode pwm"'
         - grid-template-columns: 42px 1fr
@@ -353,7 +340,7 @@ button_card_templates:
         - font-size: 12px
       state:
         - justify-self: start
-        - color: "#f5f5f7"
+        - color: "#f5f7f8"
         - font-size: 15px
         - font-weight: 650
       custom_fields:
@@ -369,9 +356,6 @@ button_card_templates:
       .fn-mode { display: inline-block; padding: 2px 6px; border-radius: 8px; color: #f0a34a; background: rgba(240, 163, 74, 0.12); font-size: 10px; }
       .fn-pwm-value { display: block; color: #f0a34a; font-size: 18px; font-weight: 650; line-height: 19px; }
       .fn-pwm-value + small { display: block; color: #778b95; font-size: 8px; line-height: 9px; }
-      ha-card { transition: transform 120ms ease-out, background-color 180ms ease; }
-      ha-card:active { transform: scale(0.985); background: rgba(255, 255, 255, 0.055); }
-      @media (prefers-reduced-motion: reduce) { ha-card { transition: none; } }
 
   fn_nas_control:
     template: fn_nas_metric
@@ -405,11 +389,11 @@ button_card_templates:
         - width: 42px
         - height: 42px
         - padding: 0
-        - border-radius: 8px
-        - border: 1px solid rgba(255, 255, 255, 0.09)
-        - background: rgba(36, 39, 43, 0.72)
-        - box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 5px 16px rgba(0, 0, 0, 0.16)
-        - backdrop-filter: blur(18px) saturate(140%)
+        - border-radius: 12px
+        - border: 1px solid rgba(239, 107, 104, 0.22)
+        - background: rgba(17, 24, 28, 0.82)
+        - box-shadow: 0 5px 16px rgba(0, 0, 0, 0.22)
+        - backdrop-filter: blur(8px)
       grid:
         - grid-template-areas: '"i"'
         - grid-template-columns: 1fr
@@ -425,7 +409,3 @@ button_card_templates:
                 ? '#ef6b68'
                 : '#c55b5b';
             ]]]
-    extra_styles: |
-      ha-card { transition: transform 120ms ease-out, background-color 180ms ease; }
-      ha-card:active { transform: scale(0.94); background: rgba(64, 48, 50, 0.82); }
-      @media (prefers-reduced-motion: reduce) { ha-card { transition: none; } }
