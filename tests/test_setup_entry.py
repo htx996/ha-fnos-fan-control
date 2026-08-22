@@ -21,6 +21,7 @@ class StubFlynasCoordinator:
         self.config_entry = entry
         self.refresh_count = 0
         self.disconnect_count = 0
+        self.data = {"fan_diagnostics": {"host_hardware": {}}}
 
     async def async_config_entry_first_refresh(self):
         self.refresh_count += 1
@@ -53,6 +54,7 @@ class StubHass:
         self.data = {}
         self.config_entries = StubConfigEntries()
         self.created_tasks = []
+        self.entity_registry = StubEntityRegistry()
 
     def async_create_task(self, coroutine):
         self.created_tasks.append(coroutine)
@@ -79,6 +81,15 @@ class StubEntry:
         self.unload_callback = unload_callback
 
 
+class StubEntityRegistry:
+    def __init__(self):
+        self.entities = {}
+        self.removed = []
+
+    def async_remove(self, entity_id):
+        self.removed.append(entity_id)
+
+
 def _install_stubs():
     asyncssh = types.ModuleType("asyncssh")
 
@@ -90,6 +101,9 @@ def _install_stubs():
     helpers = types.ModuleType("homeassistant.helpers")
     helpers_config_validation = types.ModuleType("homeassistant.helpers.config_validation")
     helpers.config_validation = helpers_config_validation
+    helpers_entity_registry = types.ModuleType("homeassistant.helpers.entity_registry")
+    helpers_entity_registry.async_get = lambda hass: hass.entity_registry
+    helpers.entity_registry = helpers_entity_registry
 
     custom_components = types.ModuleType("custom_components")
     fn_nas = types.ModuleType("custom_components.fn_nas")
@@ -114,6 +128,7 @@ def _install_stubs():
         "homeassistant.core": core,
         "homeassistant.helpers": helpers,
         "homeassistant.helpers.config_validation": helpers_config_validation,
+        "homeassistant.helpers.entity_registry": helpers_entity_registry,
         "custom_components": custom_components,
         "custom_components.fn_nas": fn_nas,
         "custom_components.fn_nas.const": const_module,
@@ -122,6 +137,62 @@ def _install_stubs():
 
 
 class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cleanup_removes_only_dxp4800pro_it8613_ghost_channels(self):
+        with patch.dict(sys.modules, _install_stubs()):
+            spec = importlib.util.spec_from_file_location(
+                "custom_components.fn_nas",
+                INIT_PATH,
+            )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["custom_components.fn_nas"] = module
+            spec.loader.exec_module(module)
+
+            hass = StubHass()
+            entry = StubEntry()
+            hass.entity_registry.entities = {
+                "fan.ghost_1": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan1_a1b2c3d4",
+                ),
+                "fan.cpu_2": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan2_a1b2c3d4",
+                ),
+                "select.ghost_4": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan4_a1b2c3d4_mode",
+                ),
+                "sensor.ghost_5": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan5_a1b2c3d4_pwm",
+                ),
+                "fan.other_entry": types.SimpleNamespace(
+                    config_entry_id="entry-2",
+                    platform="fn_nas",
+                    unique_id="entry-2_fan_it8613_fan1_a1b2c3d4",
+                ),
+            }
+
+            module._remove_dxp4800pro_ghost_fan_entities(
+                hass,
+                entry,
+                {
+                    "host_hardware": {
+                        "sys_vendor": "UGREEN",
+                        "product_name": "DXP4800 Pro",
+                    }
+                },
+            )
+
+        self.assertEqual(
+            hass.entity_registry.removed,
+            ["fan.ghost_1", "select.ghost_4", "sensor.ghost_5"],
+        )
+
     async def test_setup_entry_forwards_platforms_before_returning(self):
         with patch.dict(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(

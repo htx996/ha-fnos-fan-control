@@ -1,9 +1,11 @@
 import logging
 import asyncio
 import asyncssh
+import re
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 
 from .const import (
     DOMAIN, DATA_UPDATE_COORDINATOR, PLATFORMS, CONF_ENABLE_DOCKER, 
@@ -12,6 +14,38 @@ from .const import (
 from .coordinator import FlynasCoordinator, UPSDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _remove_dxp4800pro_ghost_fan_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    diagnostics: dict,
+) -> None:
+    """Remove IT8613 channels which are not wired on the DXP4800 Pro."""
+    hardware = diagnostics.get("host_hardware", {})
+    if (
+        hardware.get("sys_vendor", "").upper() != "UGREEN"
+        or hardware.get("product_name") != "DXP4800 Pro"
+    ):
+        return
+
+    ghost_unique_id = re.compile(
+        rf"^{re.escape(entry.entry_id)}_fan_it8613_fan(?:1|4|5)_"
+    )
+    registry = er.async_get(hass)
+    removed = []
+    for entity_id, registry_entry in list(registry.entities.items()):
+        if (
+            registry_entry.config_entry_id != entry.entry_id
+            or registry_entry.platform != DOMAIN
+            or not ghost_unique_id.match(registry_entry.unique_id)
+        ):
+            continue
+        registry.async_remove(entity_id)
+        removed.append(entity_id)
+
+    if removed:
+        _LOGGER.info("已清理 DXP4800 Pro 未接线风扇实体: %s", ", ".join(removed))
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     config = {**entry.data, **entry.options}
@@ -44,6 +78,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         await ups_coordinator.async_config_entry_first_refresh()
     except Exception as e:
         _LOGGER.debug("UPS首次数据刷新失败，将跳过UPS实体: %s", str(e))
+
+    _remove_dxp4800pro_ghost_fan_entities(
+        hass,
+        entry,
+        coordinator.data.get("fan_diagnostics", {}),
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_update_entry))

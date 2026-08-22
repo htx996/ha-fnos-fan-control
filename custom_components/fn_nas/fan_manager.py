@@ -115,8 +115,18 @@ class FanManager:
                 mode_writable_text,
             ) = parts[:12]
 
+            system_vendor = parts[12].strip() if len(parts) > 12 else ""
+            product_name = parts[13].strip() if len(parts) > 13 else ""
+
             index = self._to_int(index_text)
             if index is None:
+                continue
+            if not self._is_supported_fan_channel(
+                chip_name,
+                system_vendor,
+                product_name,
+                index,
+            ):
                 continue
 
             rpm = self._to_int(rpm_text)
@@ -131,7 +141,12 @@ class FanManager:
                 continue
             seen_ids.add(fan_id)
 
-            name = label.strip() if label.strip() else f"风扇 {index}"
+            name = label.strip() if label.strip() else self._default_fan_name(
+                chip_name,
+                system_vendor,
+                product_name,
+                index,
+            )
             control_mode = self._control_mode_from_enable(pwm_enable)
             pwm_path = f"{hwmon_path}/pwm{index}" if has_pwm else None
             pwm_enable_path = (
@@ -172,7 +187,7 @@ class FanManager:
             if not line.startswith("sysfs\t"):
                 continue
 
-            parts = (line.split("\t") + [""] * 15)[:15]
+            parts = (line.split("\t") + [""] * 17)[:17]
             (
                 _record_type,
                 sysfs_dir,
@@ -189,16 +204,30 @@ class FanManager:
                 fan_input_path,
                 pwm_path,
                 pwm_enable_path,
+                system_vendor,
+                product_name,
             ) = parts
 
             index = self._to_int(index_text) or len(fans) + 1
+            if not self._is_supported_fan_channel(
+                chip_name,
+                system_vendor,
+                product_name,
+                index,
+            ):
+                continue
             rpm = self._to_int(rpm_text)
             pwm_raw = self._to_int(pwm_text)
             pwm_enable = self._to_int(pwm_enable_text)
             has_pwm = has_pwm_text == "1"
             pwm_writable = pwm_writable_text == "1"
             mode_writable = mode_writable_text == "1"
-            name = label.strip() if label.strip() else f"风扇 {index}"
+            name = label.strip() if label.strip() else self._default_fan_name(
+                chip_name,
+                system_vendor,
+                product_name,
+                index,
+            )
             fan_id = self._make_fan_id(chip_name or "sysfs", device_path or sysfs_dir, index, name)
 
             if fan_id in seen_ids:
@@ -763,6 +792,12 @@ class FanManager:
 
     def _build_discovery_command(self) -> str:
         script = r'''
+system_vendor="$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null | tr "\t\r\n" "   " | cut -c1-160)"
+product_name="$(cat /sys/class/dmi/id/product_name 2>/dev/null | tr "\t\r\n" "   " | cut -c1-160)"
+printf "host\tkernel\t%s\n" "$(uname -r 2>/dev/null | tr "\t\r\n" "   " | cut -c1-160)"
+[ -n "$system_vendor" ] && printf "host\tsys_vendor\t%s\n" "$system_vendor"
+[ -n "$product_name" ] && printf "host\tproduct_name\t%s\n" "$product_name"
+
 for hwmon in /sys/class/hwmon/hwmon*; do
     [ -d "$hwmon" ] || continue
     chip="$(cat "$hwmon/name" 2>/dev/null || true)"
@@ -770,6 +805,12 @@ for hwmon in /sys/class/hwmon/hwmon*; do
 
     print_entry() {
         idx="$1"
+        if [ "$chip" = "it8613" ] && [ "$system_vendor" = "UGREEN" ] && [ "$product_name" = "DXP4800 Pro" ]; then
+            case "$idx" in
+                2|3) ;;
+                *) return ;;
+            esac
+        fi
         rpm=""
         label=""
         has_pwm=0
@@ -793,9 +834,10 @@ for hwmon in /sys/class/hwmon/hwmon*; do
             [ -w "$hwmon/pwm${idx}_enable" ] && mode_writable=1
         fi
 
-        printf "entry\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+        printf "entry\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
             "$hwmon" "$device" "$chip" "$idx" "$rpm" "$label" \
-            "$has_pwm" "$pwm" "$pwm_enable" "$pwm_writable" "$mode_writable"
+            "$has_pwm" "$pwm" "$pwm_enable" "$pwm_writable" "$mode_writable" \
+            "$system_vendor" "$product_name"
     }
 
     for fan_input in "$hwmon"/fan*_input; do
@@ -825,6 +867,8 @@ done
 
     def _build_sysfs_discovery_command(self) -> str:
         script = r'''
+system_vendor="$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null | tr "\t\r\n" "   " | cut -c1-160)"
+product_name="$(cat /sys/class/dmi/id/product_name 2>/dev/null | tr "\t\r\n" "   " | cut -c1-160)"
 seen_dirs=""
 
 emit_dir() {
@@ -844,6 +888,12 @@ emit_dir() {
         idx="$1"
         fan_path="$2"
         label="$3"
+        if [ "$chip" = "it8613" ] && [ "$system_vendor" = "UGREEN" ] && [ "$product_name" = "DXP4800 Pro" ]; then
+            case "$idx" in
+                2|3) ;;
+                *) return ;;
+            esac
+        fi
         rpm=""
         has_pwm=0
         pwm=""
@@ -874,10 +924,10 @@ emit_dir() {
             [ -w "$pwm_enable_path" ] && mode_writable=1
         fi
 
-        printf "sysfs\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+        printf "sysfs\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
             "$dir" "$device" "$chip" "$idx" "$rpm" "$label" \
             "$has_pwm" "$pwm" "$pwm_enable" "$pwm_writable" "$mode_writable" \
-            "$fan_path" "$pwm_path" "$pwm_enable_path"
+            "$fan_path" "$pwm_path" "$pwm_enable_path" "$system_vendor" "$product_name"
     }
 
     for fan_input in "$dir"/fan*_input "$dir"/*fan*input*; do
@@ -1265,6 +1315,38 @@ fi
             return None
         return PWM_ENABLE_TO_MODE.get(pwm_enable, f"{CONTROL_MODE_UNKNOWN}({pwm_enable})")
 
+    def _is_supported_fan_channel(
+        self,
+        chip_name: str,
+        system_vendor: str,
+        product_name: str,
+        index: int,
+    ) -> bool:
+        """Reject unwired IT8613 channels on the exact DXP4800 Pro model."""
+        if (
+            chip_name.strip().lower() == "it8613"
+            and system_vendor.strip().upper() == "UGREEN"
+            and product_name.strip() == "DXP4800 Pro"
+        ):
+            return index in {2, 3}
+        return True
+
+    def _default_fan_name(
+        self,
+        chip_name: str,
+        system_vendor: str,
+        product_name: str,
+        index: int,
+    ) -> str:
+        """Return model-aware names when hwmon does not provide labels."""
+        if (
+            chip_name.strip().lower() == "it8613"
+            and system_vendor.strip().upper() == "UGREEN"
+            and product_name.strip() == "DXP4800 Pro"
+        ):
+            return {2: "CPU 风扇", 3: "系统风扇"}.get(index, f"风扇 {index}")
+        return f"风扇 {index}"
+
     def _make_fan_id(self, chip_name: str, device_path: str, index: int, label: str) -> str:
         chip_slug = self._slug(chip_name) or "hwmon"
         stable_source = "|".join([chip_name or "", device_path or "", str(index), label or ""])
@@ -1348,7 +1430,7 @@ fi
         if source == "error":
             status = "风扇扫描失败"
 
-        host_hardware = self.parse_host_hardware(inventory_output)
+        host_hardware = self.parse_host_hardware(inventory_output or hwmon_output)
         loaded_modules = self.parse_driver_modules(inventory_output, "loaded")
         available_modules = self.parse_driver_modules(inventory_output, "available")
         fan_services = self.parse_fan_services(inventory_output)

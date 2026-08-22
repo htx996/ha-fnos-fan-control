@@ -417,6 +417,23 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(fans[1]["supports_pwm"])
         self.assertTrue(fans[1]["supports_modes"])
 
+    def test_dxp4800pro_it8613_only_exposes_connected_cpu_and_system_channels(self):
+        snapshot = "\n".join(
+            [
+                "entry\t/sys/class/hwmon/hwmon5\t/sys/devices/platform/it87.656\tit8613\t1\t0\t\t1\t128\t1\t1\t1\tUGREEN\tDXP4800 Pro",
+                "entry\t/sys/class/hwmon/hwmon5\t/sys/devices/platform/it87.656\tit8613\t2\t1320\t\t1\t112\t2\t1\t1\tUGREEN\tDXP4800 Pro",
+                "entry\t/sys/class/hwmon/hwmon5\t/sys/devices/platform/it87.656\tit8613\t3\t780\t\t1\t96\t2\t1\t1\tUGREEN\tDXP4800 Pro",
+                "entry\t/sys/class/hwmon/hwmon5\t/sys/devices/platform/it87.656\tit8613\t4\t0\t\t1\t255\t1\t1\t1\tUGREEN\tDXP4800 Pro",
+                "entry\t/sys/class/hwmon/hwmon5\t/sys/devices/platform/it87.656\tit8613\t5\t0\t\t1\t255\t1\t1\t1\tUGREEN\tDXP4800 Pro",
+            ]
+        )
+
+        fans = FanManager(FakeCoordinator()).parse_hwmon_snapshot(snapshot)
+
+        self.assertEqual([fan["index"] for fan in fans], [2, 3])
+        self.assertEqual([fan["name"] for fan in fans], ["CPU 风扇", "系统风扇"])
+        self.assertTrue(all(fan["supports_pwm"] for fan in fans))
+
     async def test_set_percentage_switches_to_manual_mode_and_writes_scaled_pwm_value(self):
         coordinator = FakeCoordinator()
         manager = FanManager(coordinator)
