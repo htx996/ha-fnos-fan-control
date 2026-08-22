@@ -76,8 +76,6 @@ sections:
                   options:
                     type: custom:button-card
                     template: fn_nas_image_action
-                    tap_action:
-                      action: more-info
                 - integration: fn_nas
                   domain: button
                   attributes:
@@ -86,8 +84,6 @@ sections:
                   options:
                     type: custom:button-card
                     template: fn_nas_image_action
-                    tap_action:
-                      action: more-info
                 - integration: fn_nas
                   domain: button
                   attributes:
@@ -96,8 +92,6 @@ sections:
                   options:
                     type: custom:button-card
                     template: fn_nas_image_action
-                    tap_action:
-                      action: more-info
             sort:
               method: attribute
               attribute: fn_nas_dashboard_order
@@ -704,6 +698,16 @@ sections:
                 type: custom:button-card
                 template: fn_nas_control
                 tap_action:
+                  action: call-service
+                  service: button.press
+                  service_data:
+                    entity_id: |
+                      [[[
+                        return entity.entity_id;
+                      ]]]
+                  confirmation:
+                    text: 确定要启动吗？
+                hold_action:
                   action: more-info
             - integration: fn_nas
               attributes:
@@ -713,6 +717,16 @@ sections:
                 type: custom:button-card
                 template: fn_nas_control
                 tap_action:
+                  action: call-service
+                  service: button.press
+                  service_data:
+                    entity_id: |
+                      [[[
+                        return entity.entity_id;
+                      ]]]
+                  confirmation:
+                    text: 确定要停止吗？
+                hold_action:
                   action: more-info
         sort:
           method: name

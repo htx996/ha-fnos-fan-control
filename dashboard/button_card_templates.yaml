@@ -482,6 +482,13 @@ button_card_templates:
                 [[[
                   return entity.entity_id;
                 ]]]
+            confirmation:
+              text: |
+                [[[
+                  const role = entity.attributes.fn_nas_dashboard_role;
+                  const label = role === 'power_on' ? '开机' : role === 'power_off' ? '关机' : '重启';
+                  return `确定要${label}吗？`;
+                ]]]
           hold_action:
             action: none
           styles:
@@ -535,8 +542,23 @@ button_card_templates:
     show_icon: true
     show_name: false
     show_state: false
+    tap_action:
+      action: call-service
+      service: button.press
+      service_data:
+        entity_id: |
+          [[[
+            return entity.entity_id;
+          ]]]
+      confirmation:
+        text: |
+          [[[
+            const role = entity.attributes.fn_nas_dashboard_role;
+            const label = role === 'power_on' ? '开机' : role === 'power_off' ? '关机' : '重启';
+            return `确定要${label}吗？`;
+          ]]]
     hold_action:
-      action: none
+      action: more-info
     styles:
       card:
         - width: 42px

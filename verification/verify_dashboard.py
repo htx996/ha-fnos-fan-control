@@ -132,7 +132,15 @@ class DashboardVerifications(VerifyCase):
         self.assertIn("action: call-service", nested_action)
         self.assertIn("service: button.press", nested_action)
         self.assertIn("return entity.entity_id", nested_action)
+        self.assertIn("confirmation:", nested_action)
+        self.assertIn("确定要${label}吗？", nested_action)
         self.assertIn("grid-template-areas: '\"action n\"'", vm_action)
+        image_action = templates.split("  fn_nas_image_action:", 1)[1]
+        self.assertIn("service: button.press", image_action)
+        self.assertIn("confirmation:", image_action)
+        self.assertIn("hold_action:\n      action: more-info", image_action)
+        self.assertIn("text: 确定要启动吗？", view)
+        self.assertIn("text: 确定要停止吗？", view)
 
     def verify_dashboard_uses_graphical_storage_disk_and_fan_views(self):
         view = DASHBOARD_VIEW_PATH.read_text(encoding="utf-8")
