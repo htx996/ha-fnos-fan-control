@@ -121,6 +121,13 @@ class DashboardVerifications(VerifyCase):
         self.assertIn("fn_nas_metric", templates)
         self.assertIn("fn_nas_vm_system", templates)
         self.assertIn("fn_nas_vm_action", templates)
+        vm_action = templates.split("  fn_nas_vm_action:", 1)[1].split(
+            "  fn_nas_image_action:", 1
+        )[0]
+        self.assertIn("action: call-service", vm_action)
+        self.assertIn("service: button.press", vm_action)
+        self.assertIn("return entity.entity_id", vm_action)
+        self.assertNotIn("action: more-info", vm_action)
 
     def verify_dashboard_uses_graphical_storage_disk_and_fan_views(self):
         view = DASHBOARD_VIEW_PATH.read_text(encoding="utf-8")

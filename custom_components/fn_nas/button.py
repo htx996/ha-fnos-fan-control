@@ -223,6 +223,7 @@ class _VMActionButton(CoordinatorEntity, ButtonEntity):
                 if vm["name"] == self.vm_name:
                     vm["state"] = self.resulting_state
             self.async_write_ha_state()
+            await self.coordinator.async_request_refresh()
         except Exception as err:
             _LOGGER.error(
                 "%s虚拟机时出错: %s", self.label, str(err), exc_info=True
@@ -281,6 +282,7 @@ class VMRebootButton(CoordinatorEntity, ButtonEntity):
                 
                 # 在下次更新时恢复实际状态
                 self.coordinator.async_add_listener(self.async_write_ha_state)
+                await self.coordinator.async_request_refresh()
         except Exception as e:
             _LOGGER.error("重启虚拟机时出错: %s", str(e), exc_info=True)
 

@@ -193,6 +193,7 @@ class ButtonVerifications(VerifyCase):
             coordinator.docker_manager.calls,
             [("app", "start"), ("app", "stop")],
         )
+        self.assertEqual(coordinator.refresh_count, 2)
         self.assertEqual(coordinator.data["vms"][0]["state"], "shut off")
         self.assertEqual(
             coordinator.data["docker_containers"][0]["status"], "exited"
