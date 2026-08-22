@@ -613,6 +613,12 @@ class FanDiscoverySensor(CoordinatorEntity, SensorEntity):
             "散热设备": diagnostics.get("cooling_devices", []),
             "sensors摘要": diagnostics.get("sensors_fan_lines", []),
             "sensors_u摘要": diagnostics.get("sensors_u_fan_lines", []),
+            "主机硬件": diagnostics.get("host_hardware", {}),
+            "已加载风扇模块": diagnostics.get("loaded_fan_modules", []),
+            "可用风扇模块": diagnostics.get("available_fan_modules", []),
+            "相关服务": diagnostics.get("fan_services", []),
+            "风扇控制应用": diagnostics.get("fan_control_app", {}),
+            "诊断工具": diagnostics.get("diagnostic_tools", {}),
             "提示": diagnostics.get("hint", "等待下一次扫描"),
             "错误": diagnostics.get("error"),
         }

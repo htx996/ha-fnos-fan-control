@@ -69,6 +69,21 @@ class StubCoordinator:
             ],
             "sensors_fan_lines": [],
             "sensors_u_fan_lines": [],
+            "host_hardware": {
+                "kernel": "6.12.18-trim",
+                "product_name": "NAS Mini",
+                "board_name": "N100-NAS",
+            },
+            "loaded_fan_modules": ["coretemp"],
+            "available_fan_modules": ["nct6775"],
+            "fan_services": ["thermal-daemon.service"],
+            "fan_control_app": {
+                "installed": False,
+                "listening": False,
+                "port": 9511,
+                "api_status": "",
+            },
+            "diagnostic_tools": {"sensors-detect": True},
             "hint": "没有发现风扇",
         }
     }
@@ -151,6 +166,12 @@ class FanDiscoverySensorTests(unittest.TestCase):
             "/sys/devices/platform/fn_ec/fan1_input",
         )
         self.assertEqual(entity.extra_state_attributes["散热设备"][0]["type"], "Fan")
+        self.assertEqual(entity.extra_state_attributes["主机硬件"]["board_name"], "N100-NAS")
+        self.assertEqual(entity.extra_state_attributes["已加载风扇模块"], ["coretemp"])
+        self.assertEqual(entity.extra_state_attributes["可用风扇模块"], ["nct6775"])
+        self.assertEqual(entity.extra_state_attributes["相关服务"], ["thermal-daemon.service"])
+        self.assertFalse(entity.extra_state_attributes["风扇控制应用"]["installed"])
+        self.assertEqual(entity.extra_state_attributes["诊断工具"], {"sensors-detect": True})
 
 
 if __name__ == "__main__":

@@ -141,6 +141,50 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(diagnostics["cooling_devices"][0]["type"], "Fan")
 
+    def test_diagnostics_expose_host_driver_and_fan_service_inventory(self):
+        inventory = "\n".join(
+            [
+                "host\tkernel\t6.12.18-trim   ",
+                "host\tsys_vendor\tExample Vendor",
+                "host\tproduct_name\tNAS Mini",
+                "host\tboard_vendor\tExample Board Vendor",
+                "host\tboard_name\tN100-NAS",
+                "module\tloaded\tcoretemp",
+                "module\tavailable\tnct6775",
+                "service\tthermal-daemon.service",
+                "app\tfan-control\t1\t1\t9511",
+                'api\t9511\t{"auth_enabled": true, "authenticated": false}',
+                "tool\tsensors-detect\t1",
+            ]
+        )
+
+        diagnostics = FanManager(FakeCoordinator())._build_diagnostics(
+            "none",
+            [],
+            "",
+            "",
+            "",
+            "",
+            inventory,
+        )
+
+        self.assertEqual(diagnostics["host_hardware"]["kernel"], "6.12.18-trim")
+        self.assertEqual(diagnostics["host_hardware"]["product_name"], "NAS Mini")
+        self.assertEqual(diagnostics["host_hardware"]["board_name"], "N100-NAS")
+        self.assertEqual(diagnostics["loaded_fan_modules"], ["coretemp"])
+        self.assertEqual(diagnostics["available_fan_modules"], ["nct6775"])
+        self.assertEqual(diagnostics["fan_services"], ["thermal-daemon.service"])
+        self.assertEqual(
+            diagnostics["fan_control_app"],
+            {
+                "installed": True,
+                "listening": True,
+                "port": 9511,
+                "api_status": '{"auth_enabled": true, "authenticated": false}',
+            },
+        )
+        self.assertEqual(diagnostics["diagnostic_tools"], {"sensors-detect": True})
+
     def test_parse_sensors_output_accepts_sensors_u_fan_input_lines(self):
         output = "\n".join(
             [

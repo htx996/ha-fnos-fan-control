@@ -353,6 +353,93 @@ class FanManager:
 
         return cooling_devices
 
+    def parse_host_hardware(self, output: str) -> dict:
+        """Parse a non-sensitive DMI and kernel inventory."""
+        allowed_fields = {
+            "kernel",
+            "sys_vendor",
+            "product_name",
+            "product_version",
+            "board_vendor",
+            "board_name",
+            "board_version",
+            "bios_vendor",
+            "bios_version",
+        }
+        hardware = {}
+        for line in output.splitlines():
+            if not line.startswith("host\t"):
+                continue
+            parts = (line.split("\t", 2) + ["", ""])[:3]
+            _record_type, key, value = parts
+            value = value.strip()
+            if key in allowed_fields and value:
+                hardware[key] = value[:160]
+        return hardware
+
+    def parse_driver_modules(self, output: str, state: str) -> list[str]:
+        """Parse loaded or installed candidate fan/thermal kernel modules."""
+        modules = []
+        prefix = f"module\t{state}\t"
+        for line in output.splitlines():
+            if not line.startswith(prefix):
+                continue
+            name = line[len(prefix):].strip()
+            if name and name not in modules:
+                modules.append(name[:80])
+            if len(modules) >= 40:
+                break
+        return modules
+
+    def parse_fan_services(self, output: str) -> list[str]:
+        """Parse bounded service names without exposing process arguments."""
+        services = []
+        for line in output.splitlines():
+            if not line.startswith("service\t"):
+                continue
+            name = line.split("\t", 1)[1].strip()
+            if name and name not in services:
+                services.append(name[:120])
+            if len(services) >= 30:
+                break
+        return services
+
+    def parse_fan_control_app(self, output: str) -> dict:
+        """Parse the optional fnOS fan-control FPK availability."""
+        app = {
+            "installed": False,
+            "listening": False,
+            "port": 9511,
+            "api_status": "",
+        }
+
+        for line in output.splitlines():
+            if line.startswith("app\tfan-control\t"):
+                parts = (line.split("\t") + ["", "", "", "", ""])[:5]
+                _record_type, _app_name, installed, listening, port = parts
+                app["installed"] = installed == "1"
+                app["listening"] = listening == "1"
+                app["port"] = self._to_int(port) or 9511
+            elif line.startswith("api\t"):
+                parts = (line.split("\t", 2) + ["", "", ""])[:3]
+                _record_type, port, status = parts
+                if (self._to_int(port) or 9511) == app["port"]:
+                    app["api_status"] = status[:240]
+
+        return app
+
+    def parse_diagnostic_tools(self, output: str) -> dict[str, bool]:
+        """Parse presence checks for safe, read-only diagnostic tools."""
+        tools = {}
+        for line in output.splitlines():
+            if not line.startswith("tool\t"):
+                continue
+            parts = (line.split("\t") + ["", "", ""])[:3]
+            _record_type, name, available = parts
+            if name:
+                tools[name[:80]] = available == "1"
+        return tools
+
     async def set_percentage(self, fan: dict, percentage: int | float) -> bool:
         """Set a PWM fan to a Home Assistant percentage value."""
         if not fan.get("supports_pwm") or not fan.get("pwm_path"):
@@ -585,6 +672,10 @@ done
 
     def _build_inventory_command(self) -> str:
         script = r'''
+sanitize_value() {
+    tr "\t\r\n" "   " | cut -c1-160
+}
+
 for hwmon in /sys/class/hwmon/hwmon*; do
     [ -d "$hwmon" ] || continue
     chip="$(cat "$hwmon/name" 2>/dev/null || true)"
@@ -606,6 +697,65 @@ for hwmon in /sys/class/hwmon/hwmon*; do
     pwm_files="${pwm_files# }"
     printf "hwmon\t%s\t%s\t%s\t%s\t%s\n" "$hwmon" "$device" "$chip" "$fan_files" "$pwm_files"
 done
+
+printf "host\tkernel\t%s\n" "$(uname -r 2>/dev/null | sanitize_value)"
+for key in sys_vendor product_name product_version board_vendor board_name board_version bios_vendor bios_version; do
+    value="$(cat "/sys/class/dmi/id/$key" 2>/dev/null | sanitize_value)"
+    [ -n "$value" ] && printf "host\t%s\t%s\n" "$key" "$value"
+done
+
+candidate_modules="it87 nct6775 nct6683 f71882fg w83627ehf w83627hf sch5627 sch5636 coretemp asus_ec_sensors asus_wmi_sensors gigabyte_wmi dell_smm_hwmon thinkpad_acpi"
+if command -v lsmod >/dev/null 2>&1; then
+    for module in $candidate_modules; do
+        if lsmod 2>/dev/null | awk 'NR > 1 {print $1}' | grep -qx "$module"; then
+            printf "module\tloaded\t%s\n" "$module"
+        fi
+    done
+fi
+
+if command -v modinfo >/dev/null 2>&1; then
+    for module in $candidate_modules; do
+        if modinfo -n "$module" >/dev/null 2>&1; then
+            printf "module\tavailable\t%s\n" "$module"
+        fi
+    done
+fi
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl list-unit-files --type=service --no-legend 2>/dev/null \
+        | awk '{print $1}' \
+        | grep -Ei '(fan|thermal|hwmon|cool|it87|nct)' \
+        | head -n 30 \
+        | while IFS= read -r service; do
+            [ -n "$service" ] && printf "service\t%s\n" "$service"
+        done
+fi
+
+app_installed=0
+[ -d /var/apps/fan-control ] && app_installed=1
+app_listening=0
+if command -v ss >/dev/null 2>&1; then
+    if ss -lnt 2>/dev/null | awk 'NR > 1 {print $4}' | grep -Eq '(^|:|\])9511$'; then
+        app_listening=1
+    fi
+fi
+printf "app\tfan-control\t%s\t%s\t9511\n" "$app_installed" "$app_listening"
+
+if [ "$app_listening" = "1" ]; then
+    api_status=""
+    if command -v curl >/dev/null 2>&1; then
+        api_status="$(curl -fsS --max-time 2 http://127.0.0.1:9511/api/auth/status 2>/dev/null | sanitize_value)"
+    elif command -v wget >/dev/null 2>&1; then
+        api_status="$(wget -qO- -T 2 http://127.0.0.1:9511/api/auth/status 2>/dev/null | sanitize_value)"
+    fi
+    [ -n "$api_status" ] && printf "api\t9511\t%s\n" "$api_status"
+fi
+
+if command -v sensors-detect >/dev/null 2>&1; then
+    printf "tool\tsensors-detect\t1\n"
+else
+    printf "tool\tsensors-detect\t0\n"
+fi
 '''
         return f"sh -c {shlex.quote(script)}"
 
@@ -676,6 +826,17 @@ done
             "cooling_devices": [],
             "sensors_fan_lines": [],
             "sensors_u_fan_lines": [],
+            "host_hardware": {},
+            "loaded_fan_modules": [],
+            "available_fan_modules": [],
+            "fan_services": [],
+            "fan_control_app": {
+                "installed": False,
+                "listening": False,
+                "port": 9511,
+                "api_status": "",
+            },
+            "diagnostic_tools": {},
             "hint": "等待下一次扫描",
         }
 
@@ -694,11 +855,18 @@ done
         if source == "error":
             status = "风扇扫描失败"
 
+        host_hardware = self.parse_host_hardware(inventory_output)
+        loaded_modules = self.parse_driver_modules(inventory_output, "loaded")
+        available_modules = self.parse_driver_modules(inventory_output, "available")
+        fan_services = self.parse_fan_services(inventory_output)
+        fan_control_app = self.parse_fan_control_app(inventory_output)
+        diagnostic_tools = self.parse_diagnostic_tools(inventory_output)
+
         hint = "已通过只读发现命令找到风扇"
         if not fans:
             hint = (
                 "没有在标准 hwmon、sensors、sensors -u 或直接 /sys 扫描中发现风扇转速；"
-                "请查看此实体属性里的 hwmon候选、sysfs候选 和 sensors摘要。"
+                "请查看主机硬件、已加载风扇模块、可用风扇模块和风扇控制应用。"
             )
         if error:
             hint = f"扫描命令异常: {error}"
@@ -718,6 +886,12 @@ done
             "cooling_devices": self.parse_cooling_devices(sysfs_output),
             "sensors_fan_lines": self._summarize_fan_lines(sensors_output),
             "sensors_u_fan_lines": self._summarize_fan_lines(sensors_u_output),
+            "host_hardware": host_hardware,
+            "loaded_fan_modules": loaded_modules,
+            "available_fan_modules": available_modules,
+            "fan_services": fan_services,
+            "fan_control_app": fan_control_app,
+            "diagnostic_tools": diagnostic_tools,
             "hint": hint,
             "error": error,
         }
