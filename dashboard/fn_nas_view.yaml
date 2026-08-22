@@ -307,59 +307,24 @@ sections:
                 type: tile
                 name: 风扇控制模式
                 vertical: false
-                features_position: bottom
-                features:
-                  - type: select-options
+                hide_state: false
+                tap_action:
+                  action: more-info
                 card_mod:
                   style: |
                     ha-card {
-                      background: rgba(240, 163, 74, 0.05);
+                      min-height: 64px;
+                      background: transparent;
                       border: none;
                       box-shadow: none;
                       color: #f4f7f8;
                       --primary-text-color: #f4f7f8;
                       --secondary-text-color: #aebbc2;
-                      --card-background-color: #172126;
-                      --secondary-background-color: #172126;
-                      --mdc-select-fill-color: #172126;
-                      --mdc-theme-on-surface: #f4f7f8;
                     }
         sort:
           method: attribute
           attribute: fn_nas_dashboard_order
           numeric: true
-
-      - type: custom:auto-entities
-        show_empty: false
-        card:
-          type: vertical-stack
-        card_param: cards
-        filter:
-          include:
-            - integration: fn_nas
-              domain: fan
-              attributes:
-                fn_nas_dashboard_category: control
-              options:
-                type: tile
-                vertical: false
-                features_position: bottom
-                features:
-                  - type: fan-speed
-                card_mod:
-                  style: |
-                    ha-card {
-                      background: rgba(240, 163, 74, 0.05);
-                      border: none;
-                      box-shadow: none;
-                      color: #f4f7f8;
-                      --primary-text-color: #f4f7f8;
-                      --secondary-text-color: #aebbc2;
-                      --tile-color: #44c7d9;
-                    }
-        sort:
-          method: name
-          ignore_case: true
 
       - type: custom:auto-entities
         show_empty: false

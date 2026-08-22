@@ -131,12 +131,17 @@ class DashboardVerifications(VerifyCase):
         self.assertIn("fn_nas_dashboard_role: temperature", view)
         self.assertIn("fn_nas_dashboard_role: rpm", view)
         self.assertIn("max_columns: 2", view)
-        self.assertIn("type: fan-speed", view)
-        self.assertIn("type: select-options", view)
+        self.assertNotIn("type: fan-speed", view)
+        self.assertNotIn("type: select-options", view)
         self.assertIn("conic-gradient", templates)
         self.assertIn("@keyframes fn-nas-spin", templates)
         self.assertIn("使用率", templates)
         self.assertIn("PWM百分比", templates)
+        self.assertIn("candidate.entity_id.startsWith('fan.')", templates)
+        self.assertIn("candidate.attributes['LLLED通道'] === channel", templates)
+        self.assertNotIn("fn-pwm-track", templates)
+        for height in ("86px", "104px", "112px", "72px"):
+            self.assertIn(f"min-height: {height}", templates)
 
     def verify_readme_documents_manual_dashboard_installation(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
