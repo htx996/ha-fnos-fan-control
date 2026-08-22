@@ -16,40 +16,39 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     config = {**entry.data, **entry.options}
     coordinator = FlynasCoordinator(hass, config, entry)
+    ups_coordinator = UPSDataUpdateCoordinator(hass, coordinator.config, coordinator)
     # 直接初始化，不阻塞等待NAS上线
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
         DATA_UPDATE_COORDINATOR: coordinator,
-        "ups_coordinator": None,
+        "ups_coordinator": ups_coordinator,
         CONF_ENABLE_DOCKER: coordinator.config.get(CONF_ENABLE_DOCKER, False)
     }
-    # 异步后台初始化
-    hass.async_create_task(async_delayed_setup(hass, entry, coordinator))
-    return True
 
-async def async_delayed_setup(hass: HomeAssistant, entry: ConfigEntry, coordinator: FlynasCoordinator):
     try:
-        # 不阻塞等待NAS上线，直接尝试刷新数据
         await coordinator.async_config_entry_first_refresh()
-        enable_docker = coordinator.config.get(CONF_ENABLE_DOCKER, False)
-        if enable_docker:
-            from .docker_manager import DockerManager
-            coordinator.docker_manager = DockerManager(coordinator)
-            _LOGGER.debug("已启用Docker容器监控")
-        else:
-            coordinator.docker_manager = None
-            _LOGGER.debug("未启用Docker容器监控")
-        ups_coordinator = UPSDataUpdateCoordinator(hass, coordinator.config, coordinator)
-        await ups_coordinator.async_config_entry_first_refresh()
-        hass.data[DOMAIN][entry.entry_id]["ups_coordinator"] = ups_coordinator
-        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-        entry.async_on_unload(entry.add_update_listener(async_update_entry))
-        _LOGGER.info("飞牛NAS集成初始化完成")
     except Exception as e:
-        _LOGGER.error("飞牛NAS集成初始化失败: %s", str(e))
-        await coordinator.async_disconnect()
-        if hasattr(coordinator, '_ping_task') and coordinator._ping_task:
-            coordinator._ping_task.cancel()
+        # 即使首次采集失败，也继续注册基础实体，避免HA里只出现空条目。
+        _LOGGER.warning("飞牛NAS首次数据刷新失败，将使用默认数据加载实体: %s", str(e))
+
+    enable_docker = coordinator.config.get(CONF_ENABLE_DOCKER, False)
+    if enable_docker:
+        from .docker_manager import DockerManager
+        coordinator.docker_manager = DockerManager(coordinator)
+        _LOGGER.debug("已启用Docker容器监控")
+    else:
+        coordinator.docker_manager = None
+        _LOGGER.debug("未启用Docker容器监控")
+
+    try:
+        await ups_coordinator.async_config_entry_first_refresh()
+    except Exception as e:
+        _LOGGER.debug("UPS首次数据刷新失败，将跳过UPS实体: %s", str(e))
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(async_update_entry))
+    _LOGGER.info("飞牛NAS集成初始化完成")
+    return True
 
 async def async_update_entry(hass: HomeAssistant, entry: ConfigEntry):
     """更新配置项"""
