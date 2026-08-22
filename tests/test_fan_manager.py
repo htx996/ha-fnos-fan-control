@@ -72,6 +72,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
                     ]
                 ),
                 "",
+                "",
                 "hwmon\t/sys/class/hwmon/hwmon0\t/sys/devices/platform/coretemp.0\tcoretemp\t\t",
             ]
         )
@@ -88,6 +89,57 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
             "/sys/class/hwmon/hwmon0",
         )
         self.assertIn("sensors -u", coordinator.commands[2])
+
+    async def test_get_fans_info_uses_direct_sysfs_fan_input_when_standard_sources_are_empty(self):
+        coordinator = FakeCoordinator(
+            [
+                "",
+                "",
+                "",
+                "\n".join(
+                    [
+                        "sysfs\t/sys/devices/platform/fn_ec\t/sys/devices/platform/fn_ec\tfn_ec\t1\t1380\tSystem Fan\t1\t128\t1\t1\t1\t/sys/devices/platform/fn_ec/fan1_input\t/sys/devices/platform/fn_ec/pwm1\t/sys/devices/platform/fn_ec/pwm1_enable",
+                    ]
+                ),
+            ]
+        )
+        manager = FanManager(coordinator)
+
+        fans = await manager.get_fans_info()
+
+        self.assertEqual(len(fans), 1)
+        self.assertEqual(fans[0]["name"], "System Fan")
+        self.assertEqual(fans[0]["rpm"], 1380)
+        self.assertEqual(fans[0]["pwm_percent"], 50)
+        self.assertTrue(fans[0]["supports_pwm"])
+        self.assertTrue(fans[0]["supports_modes"])
+        self.assertEqual(fans[0]["fan_input_path"], "/sys/devices/platform/fn_ec/fan1_input")
+        self.assertEqual(manager.last_diagnostics["source"], "sysfs")
+
+    def test_parse_sysfs_candidates_includes_raw_fan_and_cooling_paths(self):
+        output = "\n".join(
+            [
+                "candidate\t/sys/devices/platform/fn_ec/fan1_input\t1380",
+                "candidate\t/sys/devices/platform/fn_ec/pwm1\t128",
+                "cooling\t/sys/class/thermal/cooling_device0\tFan\t2\t10\t1",
+            ]
+        )
+        manager = FanManager(FakeCoordinator())
+        diagnostics = manager._build_diagnostics(
+            "none",
+            [],
+            "",
+            "",
+            "",
+            output,
+            "",
+        )
+
+        self.assertEqual(
+            diagnostics["sysfs_fan_candidates"][0]["path"],
+            "/sys/devices/platform/fn_ec/fan1_input",
+        )
+        self.assertEqual(diagnostics["cooling_devices"][0]["type"], "Fan")
 
     def test_parse_sensors_output_accepts_sensors_u_fan_input_lines(self):
         output = "\n".join(

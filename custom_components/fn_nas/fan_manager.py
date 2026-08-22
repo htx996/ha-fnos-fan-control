@@ -38,6 +38,7 @@ class FanManager:
         hwmon_output = ""
         sensors_output = ""
         sensors_u_output = ""
+        sysfs_output = ""
         inventory_output = ""
 
         try:
@@ -45,7 +46,7 @@ class FanManager:
             fans = self.parse_hwmon_snapshot(hwmon_output) if hwmon_output else []
             if fans:
                 self.last_diagnostics = self._build_diagnostics(
-                    "hwmon", fans, hwmon_output, sensors_output, sensors_u_output, inventory_output
+                    "hwmon", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
                 )
                 return fans
 
@@ -53,7 +54,7 @@ class FanManager:
             fans = self.parse_sensors_output(sensors_output) if sensors_output else []
             if fans:
                 self.last_diagnostics = self._build_diagnostics(
-                    "sensors", fans, hwmon_output, sensors_output, sensors_u_output, inventory_output
+                    "sensors", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
                 )
                 return fans
 
@@ -61,19 +62,27 @@ class FanManager:
             fans = self.parse_sensors_output(sensors_u_output) if sensors_u_output else []
             if fans:
                 self.last_diagnostics = self._build_diagnostics(
-                    "sensors -u", fans, hwmon_output, sensors_output, sensors_u_output, inventory_output
+                    "sensors -u", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+                )
+                return fans
+
+            sysfs_output = await self.coordinator.run_command(self._build_sysfs_discovery_command())
+            fans = self.parse_sysfs_snapshot(sysfs_output) if sysfs_output else []
+            if fans:
+                self.last_diagnostics = self._build_diagnostics(
+                    "sysfs", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
                 )
                 return fans
 
             inventory_output = await self.coordinator.run_command(self._build_inventory_command())
             self.last_diagnostics = self._build_diagnostics(
-                "none", [], hwmon_output, sensors_output, sensors_u_output, inventory_output
+                "none", [], hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
             )
             return []
         except Exception as e:
             _LOGGER.debug("获取风扇信息失败: %s", str(e))
             self.last_diagnostics = self._build_diagnostics(
-                "error", [], hwmon_output, sensors_output, sensors_u_output, inventory_output, str(e)
+                "error", [], hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output, str(e)
             )
             return []
 
@@ -149,6 +158,71 @@ class FanManager:
                     "control_mode": control_mode,
                     "supports_pwm": has_pwm and pwm_writable,
                     "supports_modes": pwm_enable_path is not None and mode_writable,
+                }
+            )
+
+        return fans
+
+    def parse_sysfs_snapshot(self, output: str) -> list[dict]:
+        """Parse direct /sys fan records not linked through /sys/class/hwmon."""
+        fans = []
+        seen_ids = set()
+
+        for line in output.splitlines():
+            if not line.startswith("sysfs\t"):
+                continue
+
+            parts = (line.split("\t") + [""] * 15)[:15]
+            (
+                _record_type,
+                sysfs_dir,
+                device_path,
+                chip_name,
+                index_text,
+                rpm_text,
+                label,
+                has_pwm_text,
+                pwm_text,
+                pwm_enable_text,
+                pwm_writable_text,
+                mode_writable_text,
+                fan_input_path,
+                pwm_path,
+                pwm_enable_path,
+            ) = parts
+
+            index = self._to_int(index_text) or len(fans) + 1
+            rpm = self._to_int(rpm_text)
+            pwm_raw = self._to_int(pwm_text)
+            pwm_enable = self._to_int(pwm_enable_text)
+            has_pwm = has_pwm_text == "1"
+            pwm_writable = pwm_writable_text == "1"
+            mode_writable = mode_writable_text == "1"
+            name = label.strip() if label.strip() else f"风扇 {index}"
+            fan_id = self._make_fan_id(chip_name or "sysfs", device_path or sysfs_dir, index, name)
+
+            if fan_id in seen_ids:
+                continue
+            seen_ids.add(fan_id)
+
+            fans.append(
+                {
+                    "id": fan_id,
+                    "name": name,
+                    "index": index,
+                    "chip": chip_name or "sysfs",
+                    "hwmon_path": sysfs_dir,
+                    "device_path": device_path or sysfs_dir,
+                    "fan_input_path": fan_input_path or None,
+                    "pwm_path": pwm_path if has_pwm and pwm_path else None,
+                    "pwm_enable_path": pwm_enable_path if pwm_enable_path else None,
+                    "rpm": rpm,
+                    "pwm_raw": pwm_raw,
+                    "pwm_percent": self._pwm_raw_to_percent(pwm_raw) if has_pwm else None,
+                    "pwm_enable": pwm_enable,
+                    "control_mode": self._control_mode_from_enable(pwm_enable),
+                    "supports_pwm": has_pwm and pwm_writable and bool(pwm_path),
+                    "supports_modes": bool(pwm_enable_path) and mode_writable,
                 }
             )
 
@@ -240,6 +314,44 @@ class FanManager:
                 break
 
         return inventory
+
+    def parse_sysfs_candidates(self, output: str) -> list[dict]:
+        """Parse bounded raw /sys fan/PWM paths for diagnostics."""
+        candidates = []
+        for line in output.splitlines():
+            if not line.startswith("candidate\t"):
+                continue
+
+            parts = (line.split("\t") + ["", ""])[:3]
+            _record_type, path, value = parts
+            candidates.append({"path": path, "value": value})
+            if len(candidates) >= 80:
+                break
+
+        return candidates
+
+    def parse_cooling_devices(self, output: str) -> list[dict]:
+        """Parse Linux thermal cooling devices for diagnostics only."""
+        cooling_devices = []
+        for line in output.splitlines():
+            if not line.startswith("cooling\t"):
+                continue
+
+            parts = (line.split("\t") + ["", "", "", "", ""])[:6]
+            _record_type, path, device_type, cur_state, max_state, writable = parts
+            cooling_devices.append(
+                {
+                    "path": path,
+                    "type": device_type,
+                    "cur_state": self._to_int(cur_state),
+                    "max_state": self._to_int(max_state),
+                    "writable": writable == "1",
+                }
+            )
+            if len(cooling_devices) >= 40:
+                break
+
+        return cooling_devices
 
     async def set_percentage(self, fan: dict, percentage: int | float) -> bool:
         """Set a PWM fan to a Home Assistant percentage value."""
@@ -355,6 +467,122 @@ done
 '''
         return f"sh -c {shlex.quote(script)}"
 
+    def _build_sysfs_discovery_command(self) -> str:
+        script = r'''
+seen_dirs=""
+
+emit_dir() {
+    dir="$1"
+    [ -d "$dir" ] || return
+    case " $seen_dirs " in
+        *" $dir "*) return ;;
+    esac
+    seen_dirs="${seen_dirs} ${dir}"
+
+    chip="$(cat "$dir/name" 2>/dev/null || basename "$dir")"
+    device="$(readlink -f "$dir" 2>/dev/null || printf "%s" "$dir")"
+    printed_indexes=""
+    fallback_idx=100
+
+    print_entry() {
+        idx="$1"
+        fan_path="$2"
+        label="$3"
+        rpm=""
+        has_pwm=0
+        pwm=""
+        pwm_enable=""
+        pwm_writable=0
+        mode_writable=0
+        pwm_path=""
+        pwm_enable_path=""
+
+        [ -r "$fan_path" ] && rpm="$(cat "$fan_path" 2>/dev/null || true)"
+        if [ -z "$label" ] && [ -r "$dir/fan${idx}_label" ]; then
+            label="$(cat "$dir/fan${idx}_label" 2>/dev/null | tr "\t\n" "  " || true)"
+        fi
+        if [ -z "$label" ] && [ -r "$dir/pwm${idx}_label" ]; then
+            label="$(cat "$dir/pwm${idx}_label" 2>/dev/null | tr "\t\n" "  " || true)"
+        fi
+
+        if [ -e "$dir/pwm${idx}" ]; then
+            has_pwm=1
+            pwm_path="$dir/pwm${idx}"
+            pwm="$(cat "$pwm_path" 2>/dev/null || true)"
+            [ -w "$pwm_path" ] && pwm_writable=1
+        fi
+
+        if [ -e "$dir/pwm${idx}_enable" ]; then
+            pwm_enable_path="$dir/pwm${idx}_enable"
+            pwm_enable="$(cat "$pwm_enable_path" 2>/dev/null || true)"
+            [ -w "$pwm_enable_path" ] && mode_writable=1
+        fi
+
+        printf "sysfs\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+            "$dir" "$device" "$chip" "$idx" "$rpm" "$label" \
+            "$has_pwm" "$pwm" "$pwm_enable" "$pwm_writable" "$mode_writable" \
+            "$fan_path" "$pwm_path" "$pwm_enable_path"
+    }
+
+    for fan_input in "$dir"/fan*_input "$dir"/*fan*input*; do
+        [ -f "$fan_input" ] || continue
+        base="${fan_input##*/}"
+        idx="$(printf "%s" "$base" | sed -n 's/^fan\([0-9][0-9]*\)_input$/\1/p')"
+        label=""
+        if [ -z "$idx" ]; then
+            fallback_idx=$((fallback_idx + 1))
+            idx="$fallback_idx"
+            label="$base"
+        fi
+        case " $printed_indexes " in
+            *" $idx "*) continue ;;
+        esac
+        printed_indexes="${printed_indexes} ${idx}"
+        print_entry "$idx" "$fan_input" "$label"
+    done
+
+    for pwm_file in "$dir"/pwm[0-9]*; do
+        [ -f "$pwm_file" ] || continue
+        case "$pwm_file" in
+            *_enable|*_mode|*_freq) continue ;;
+        esac
+        base="${pwm_file##*/}"
+        idx="${base#pwm}"
+        case "$idx" in
+            ""|*[!0-9]*) continue ;;
+        esac
+        case " $printed_indexes " in
+            *" $idx "*) continue ;;
+        esac
+        printed_indexes="${printed_indexes} ${idx}"
+        print_entry "$idx" "" ""
+    done
+}
+
+find /sys -type f \( -name "fan*_input" -o -name "*fan*input*" -o -name "pwm[0-9]*" \) 2>/dev/null | head -n 200 | while IFS= read -r path; do
+    emit_dir "${path%/*}"
+done
+
+find /sys -maxdepth 8 \( -iname "*fan*" -o -iname "*pwm*" \) 2>/dev/null | head -n 80 | while IFS= read -r path; do
+    value=""
+    if [ -f "$path" ] && [ -r "$path" ]; then
+        value="$(cat "$path" 2>/dev/null | tr "\t\n" "  " | cut -c1-120 || true)"
+    fi
+    printf "candidate\t%s\t%s\n" "$path" "$value"
+done
+
+for cooling in /sys/class/thermal/cooling_device*; do
+    [ -d "$cooling" ] || continue
+    ctype="$(cat "$cooling/type" 2>/dev/null || true)"
+    cur_state="$(cat "$cooling/cur_state" 2>/dev/null || true)"
+    max_state="$(cat "$cooling/max_state" 2>/dev/null || true)"
+    writable=0
+    [ -w "$cooling/cur_state" ] && writable=1
+    printf "cooling\t%s\t%s\t%s\t%s\t%s\n" "$cooling" "$ctype" "$cur_state" "$max_state" "$writable"
+done
+'''
+        return f"sh -c {shlex.quote(script)}"
+
     def _build_inventory_command(self) -> str:
         script = r'''
 for hwmon in /sys/class/hwmon/hwmon*; do
@@ -443,6 +671,9 @@ done
             "source": "none",
             "hwmon_entry_count": 0,
             "hwmon_inventory": [],
+            "sysfs_entry_count": 0,
+            "sysfs_fan_candidates": [],
+            "cooling_devices": [],
             "sensors_fan_lines": [],
             "sensors_u_fan_lines": [],
             "hint": "等待下一次扫描",
@@ -455,6 +686,7 @@ done
         hwmon_output: str,
         sensors_output: str,
         sensors_u_output: str,
+        sysfs_output: str,
         inventory_output: str,
         error: str | None = None,
     ) -> dict:
@@ -465,8 +697,8 @@ done
         hint = "已通过只读发现命令找到风扇"
         if not fans:
             hint = (
-                "没有在 /sys/class/hwmon、sensors 或 sensors -u 中发现风扇转速；"
-                "请查看此实体属性里的 hwmon候选 和 sensors摘要。"
+                "没有在标准 hwmon、sensors、sensors -u 或直接 /sys 扫描中发现风扇转速；"
+                "请查看此实体属性里的 hwmon候选、sysfs候选 和 sensors摘要。"
             )
         if error:
             hint = f"扫描命令异常: {error}"
@@ -479,6 +711,11 @@ done
                 [line for line in hwmon_output.splitlines() if line.startswith("entry\t")]
             ),
             "hwmon_inventory": self.parse_hwmon_inventory(inventory_output) if inventory_output else [],
+            "sysfs_entry_count": len(
+                [line for line in sysfs_output.splitlines() if line.startswith("sysfs\t")]
+            ),
+            "sysfs_fan_candidates": self.parse_sysfs_candidates(sysfs_output),
+            "cooling_devices": self.parse_cooling_devices(sysfs_output),
             "sensors_fan_lines": self._summarize_fan_lines(sensors_output),
             "sensors_u_fan_lines": self._summarize_fan_lines(sensors_u_output),
             "hint": hint,

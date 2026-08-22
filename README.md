@@ -62,8 +62,9 @@ https://github.com/htx996/ha-fnos-fan-control
 *   频繁扫描可能导致NAS负载升高
 *   网络唤醒功能需在BIOS中启用Wake-on-LAN
 *   风扇功能会自动发现 `/sys/class/hwmon`，不需要手动填写 `hwmonX`
+*   如果标准 hwmon 没有风扇，会继续只读扫描 `/sys` 中的非标准 `fan*_input` / `pwm*` 路径
 *   不支持 PWM 控制的机型只显示风扇监控实体，不会创建调速实体
-*   如果没有看到风扇实体，请打开“飞牛NAS系统监控”设备里的“风扇发现状态”实体，查看 `hwmon候选`、`sensors摘要`、`sensors_u摘要` 属性
+*   如果没有看到风扇实体，请打开“飞牛NAS系统监控”设备里的“风扇发现状态”实体，查看 `hwmon候选`、`sysfs候选`、`散热设备`、`sensors摘要`、`sensors_u摘要` 属性
 
 ### 🔄 问题排查
 

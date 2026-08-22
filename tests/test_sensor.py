@@ -54,6 +54,19 @@ class StubCoordinator:
                     "pwm_files": [],
                 }
             ],
+            "sysfs_entry_count": 0,
+            "sysfs_fan_candidates": [
+                {"path": "/sys/devices/platform/fn_ec/fan1_input", "value": "1380"}
+            ],
+            "cooling_devices": [
+                {
+                    "path": "/sys/class/thermal/cooling_device0",
+                    "type": "Fan",
+                    "cur_state": 2,
+                    "max_state": 10,
+                    "writable": True,
+                }
+            ],
             "sensors_fan_lines": [],
             "sensors_u_fan_lines": [],
             "hint": "没有发现风扇",
@@ -133,6 +146,11 @@ class FanDiscoverySensorTests(unittest.TestCase):
             entity.extra_state_attributes["hwmon候选"][0]["path"],
             "/sys/class/hwmon/hwmon0",
         )
+        self.assertEqual(
+            entity.extra_state_attributes["sysfs候选"][0]["path"],
+            "/sys/devices/platform/fn_ec/fan1_input",
+        )
+        self.assertEqual(entity.extra_state_attributes["散热设备"][0]["type"], "Fan")
 
 
 if __name__ == "__main__":
