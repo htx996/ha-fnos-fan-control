@@ -159,7 +159,7 @@ def _install_stubs():
 
     custom_components = types.ModuleType("custom_components")
     fn_nas = types.ModuleType("custom_components.fn_nas")
-    fn_nas.__path__ = []
+    fn_nas.__path__ = [str(SENSOR_PATH.parent)]
     fn_nas_const = types.ModuleType("custom_components.fn_nas.const")
     fn_nas_const.DOMAIN = "fn_nas"
     fn_nas_const.HDD_TEMP = "temperature"
@@ -196,6 +196,79 @@ def _install_stubs():
 
 
 class FanDiscoverySensorTests(unittest.TestCase):
+    def test_fan_sensor_follows_llled_channel_when_backend_id_changes(self):
+        with patch.dict(sys.modules, _install_stubs()):
+            spec = importlib.util.spec_from_file_location(
+                "custom_components.fn_nas.sensor",
+                SENSOR_PATH,
+            )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["custom_components.fn_nas.sensor"] = module
+            spec.loader.exec_module(module)
+
+            coordinator = types.SimpleNamespace(
+                data={
+                    "fans": [
+                        {
+                            "id": "llled_cpu",
+                            "name": "CPU 风扇",
+                            "channel": "cpu",
+                            "rpm": 2070,
+                            "pwm_percent": 50,
+                        }
+                    ]
+                }
+            )
+            entity = module.FanSensor(
+                coordinator,
+                "it8613_fan2_a1b2c3d4",
+                "fan_rpm",
+                "CPU 风扇 转速",
+                "entry-1_cpu_rpm",
+                "RPM",
+                "mdi:fan",
+                fan_channel="cpu",
+            )
+
+        self.assertEqual(entity.native_value, 2070)
+
+    def test_fan_sensor_follows_channel_when_llled_id_becomes_hwmon_id(self):
+        with patch.dict(sys.modules, _install_stubs()):
+            spec = importlib.util.spec_from_file_location(
+                "custom_components.fn_nas.sensor",
+                SENSOR_PATH,
+            )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["custom_components.fn_nas.sensor"] = module
+            spec.loader.exec_module(module)
+
+            coordinator = types.SimpleNamespace(
+                data={
+                    "fans": [
+                        {
+                            "id": "it8613_fan3_a1b2c3d4",
+                            "name": "系统风扇",
+                            "chip": "it8613",
+                            "index": 3,
+                            "rpm": 1053,
+                            "pwm_percent": 50,
+                        }
+                    ]
+                }
+            )
+            entity = module.FanSensor(
+                coordinator,
+                "llled_sys",
+                "fan_pwm",
+                "系统风扇 PWM",
+                "entry-1_system_pwm",
+                "%",
+                "mdi:fan-speed-3",
+                fan_channel="sys",
+            )
+
+        self.assertEqual(entity.native_value, 50)
+
     def test_fan_discovery_sensor_exposes_diagnostics_attributes(self):
         with patch.dict(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(

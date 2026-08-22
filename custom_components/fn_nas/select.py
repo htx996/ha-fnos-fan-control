@@ -4,6 +4,7 @@ from homeassistant.components.select import SelectEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DATA_UPDATE_COORDINATOR, DEVICE_ID_NAS, DOMAIN
+from .fan_identity import infer_fan_channel, resolve_fan_record
 from .fan_manager import (
     CONTROL_MODE_AUTO,
     CONTROL_MODE_FULL_SPEED,
@@ -99,6 +100,7 @@ class FanModeSelect(CoordinatorEntity, SelectEntity):
     def __init__(self, coordinator, fan_info: dict, entry_id: str):
         super().__init__(coordinator)
         self.fan_id = fan_info["id"]
+        self.fan_channel = infer_fan_channel(fan_info)
         self._attr_name = f"{fan_info['name']} 模式"
         self._attr_unique_id = f"{entry_id}_fan_{self.fan_id}_mode"
         self._attr_icon = "mdi:tune"
@@ -112,10 +114,11 @@ class FanModeSelect(CoordinatorEntity, SelectEntity):
 
     @property
     def _fan_data(self) -> dict | None:
-        for fan in self.coordinator.data.get("fans", []):
-            if fan.get("id") == self.fan_id:
-                return fan
-        return None
+        return resolve_fan_record(
+            self.coordinator.data.get("fans", []),
+            self.fan_id,
+            self.fan_channel,
+        )
 
     @property
     def available(self) -> bool:
@@ -150,6 +153,8 @@ class FanModeSelect(CoordinatorEntity, SelectEntity):
         fan = self._fan_data or {}
         return {
             "风扇ID": self.fan_id,
+            "当前风扇ID": fan.get("id"),
+            "LLLED通道": infer_fan_channel(fan) or self.fan_channel,
             "控制后端": fan.get("backend", "hwmon"),
             "PWM enable": fan.get("pwm_enable"),
             "PWM控制支持": fan.get("supports_pwm", False),

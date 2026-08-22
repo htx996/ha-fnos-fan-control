@@ -9,6 +9,7 @@ from .const import (
     DEVICE_ID_NAS, DATA_UPDATE_COORDINATOR, ICON_FAN, FAN_RPM,
     FAN_PWM, FAN_CONTROL_MODE, FAN_DISCOVERY
 )
+from .fan_identity import infer_fan_channel, resolve_fan_record
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -132,6 +133,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                     "RPM",
                     ICON_FAN,
                     state_class=SensorStateClass.MEASUREMENT,
+                    fan_channel=infer_fan_channel(fan),
                 )
             )
             existing_ids.add(rpm_uid)
@@ -148,6 +150,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                     "%",
                     "mdi:fan-speed-3",
                     state_class=SensorStateClass.MEASUREMENT,
+                    fan_channel=infer_fan_channel(fan),
                 )
             )
             existing_ids.add(pwm_uid)
@@ -163,6 +166,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                     mode_uid,
                     None,
                     "mdi:tune",
+                    fan_channel=infer_fan_channel(fan),
                 )
             )
             existing_ids.add(mode_uid)
@@ -530,9 +534,11 @@ class FanSensor(CoordinatorEntity, SensorEntity):
         unit,
         icon,
         state_class=None,
+        fan_channel=None,
     ):
         super().__init__(coordinator)
         self.fan_id = fan_id
+        self.fan_channel = fan_channel
         self.sensor_type = sensor_type
         self._attr_name = name
         self._attr_unique_id = unique_id
@@ -549,10 +555,11 @@ class FanSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def _fan_data(self):
-        for fan in self.coordinator.data.get("fans", []):
-            if fan.get("id") == self.fan_id:
-                return fan
-        return None
+        return resolve_fan_record(
+            self.coordinator.data.get("fans", []),
+            self.fan_id,
+            self.fan_channel,
+        )
 
     @property
     def native_value(self):
@@ -573,6 +580,8 @@ class FanSensor(CoordinatorEntity, SensorEntity):
         fan = self._fan_data or {}
         return {
             "风扇ID": self.fan_id,
+            "当前风扇ID": fan.get("id"),
+            "LLLED通道": infer_fan_channel(fan) or self.fan_channel,
             "芯片": fan.get("chip"),
             "hwmon路径": fan.get("hwmon_path"),
             "PWM原始值": fan.get("pwm_raw"),

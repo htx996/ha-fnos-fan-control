@@ -5,6 +5,7 @@ from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DATA_UPDATE_COORDINATOR, DEVICE_ID_NAS, DOMAIN
+from .fan_identity import infer_fan_channel, resolve_fan_record
 from .fan_manager import (
     CONTROL_MODE_AUTO,
     CONTROL_MODE_FULL_SPEED,
@@ -38,6 +39,7 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
     def __init__(self, coordinator, fan_info: dict, entry_id: str):
         super().__init__(coordinator)
         self.fan_id = fan_info["id"]
+        self.fan_channel = infer_fan_channel(fan_info)
         self._attr_name = f"{fan_info['name']} 控制"
         self._attr_unique_id = f"{entry_id}_fan_{self.fan_id}"
         self._attr_icon = "mdi:fan"
@@ -50,10 +52,11 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
 
     @property
     def _fan_data(self) -> dict | None:
-        for fan in self.coordinator.data.get("fans", []):
-            if fan.get("id") == self.fan_id:
-                return fan
-        return None
+        return resolve_fan_record(
+            self.coordinator.data.get("fans", []),
+            self.fan_id,
+            self.fan_channel,
+        )
 
     @property
     def available(self) -> bool:
@@ -162,8 +165,9 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
         fan = self._fan_data or {}
         return {
             "风扇ID": self.fan_id,
+            "当前风扇ID": fan.get("id"),
             "控制后端": fan.get("backend", "hwmon"),
-            "LLLED通道": fan.get("channel"),
+            "LLLED通道": infer_fan_channel(fan) or self.fan_channel,
             "转速": fan.get("rpm"),
             "PWM原始值": fan.get("pwm_raw"),
             "控制模式": fan.get("control_mode"),

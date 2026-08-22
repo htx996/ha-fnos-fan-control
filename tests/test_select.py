@@ -75,7 +75,7 @@ def _install_stubs():
 
     custom_components = types.ModuleType("custom_components")
     fn_nas = types.ModuleType("custom_components.fn_nas")
-    fn_nas.__path__ = []
+    fn_nas.__path__ = [str(SELECT_PATH.parent)]
     const = types.ModuleType("custom_components.fn_nas.const")
     const.DATA_UPDATE_COORDINATOR = "coordinator"
     const.DEVICE_ID_NAS = "flynas_nas_system"
