@@ -171,6 +171,7 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
             "可用模式": fan.get("available_modes", []),
             "最低安全PWM": fan.get("minimum_pwm_percent"),
             "退出全速PWM": fan.get("manual_recovery_percent"),
+            "最近控制结果": fan.get("last_control_result"),
             "hwmon路径": fan.get("hwmon_path"),
             "芯片": fan.get("chip"),
         }

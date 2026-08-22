@@ -34,6 +34,7 @@ class FanManager:
     def __init__(self, coordinator):
         self.coordinator = coordinator
         self.last_diagnostics = self._empty_diagnostics()
+        self.last_control_results = {}
 
     async def get_fans_info(self) -> list[dict]:
         """Discover fan sensors and PWM controls from Linux hwmon."""
@@ -186,6 +187,7 @@ class FanManager:
                     "pwm_enable": pwm_enable,
                     "control_mode": control_mode,
                     "supports_pwm": supports_pwm,
+                    "last_control_result": self.last_control_results.get(fan_id),
                     **control_capabilities,
                 }
             )
@@ -278,6 +280,7 @@ class FanManager:
                     "pwm_enable": pwm_enable,
                     "control_mode": self._control_mode_from_enable(pwm_enable),
                     "supports_pwm": supports_pwm,
+                    "last_control_result": self.last_control_results.get(fan_id),
                     **control_capabilities,
                 }
             )
@@ -789,11 +792,9 @@ class FanManager:
             fan.get("supports_modes", False),
         )
         if supports_manual_mode and fan.get("pwm_enable_path"):
-            if not await self._write_sysfs(fan["pwm_enable_path"], MODE_TO_PWM_ENABLE[CONTROL_MODE_MANUAL]):
-                _LOGGER.warning("无法将风扇 %s 切换到手动模式", fan.get("name", fan.get("id")))
+            if not await self._write_manual_percentage(fan, pwm_raw):
                 return False
-
-        if not await self._write_sysfs(fan["pwm_path"], pwm_raw):
+        elif not await self._write_sysfs(fan["pwm_path"], pwm_raw):
             _LOGGER.warning("无法写入风扇 %s PWM 值", fan.get("name", fan.get("id")))
             return False
 
@@ -1370,6 +1371,54 @@ fi
 
         return OK_TOKEN in result and ERROR_TOKEN not in result
 
+    async def _write_manual_percentage(self, fan: dict, pwm_raw: int) -> bool:
+        """Write manual mode and PWM together, then verify both after a delay."""
+        mode_path = fan.get("pwm_enable_path")
+        pwm_path = fan.get("pwm_path")
+        if (
+            not mode_path
+            or not pwm_path
+            or not mode_path.startswith("/sys/")
+            or not pwm_path.startswith("/sys/")
+        ):
+            return False
+
+        command = self._build_manual_pwm_command(mode_path, pwm_path, pwm_raw)
+        try:
+            result = await self.coordinator.run_command(command)
+        except Exception as e:
+            _LOGGER.debug("手动风扇控制事务失败: %s", str(e))
+            result = ERROR_TOKEN
+
+        success = OK_TOKEN in result and ERROR_TOKEN not in result
+        readback_match = re.search(r"\bmode=(-?\d+)\s+pwm=(-?\d+)\b", result)
+        actual_mode = self._to_int(readback_match.group(1)) if readback_match else None
+        actual_pwm = self._to_int(readback_match.group(2)) if readback_match else None
+        if success:
+            actual_mode = MODE_TO_PWM_ENABLE[CONTROL_MODE_MANUAL] if actual_mode is None else actual_mode
+            actual_pwm = pwm_raw if actual_pwm is None else actual_pwm
+
+        control_result = {
+            "success": success,
+            "requested_mode": MODE_TO_PWM_ENABLE[CONTROL_MODE_MANUAL],
+            "requested_pwm": pwm_raw,
+            "actual_mode": actual_mode,
+            "actual_pwm": actual_pwm,
+        }
+        fan["last_control_result"] = control_result
+        fan_id = fan.get("id")
+        if fan_id:
+            self.last_control_results[fan_id] = control_result
+
+        if not success:
+            _LOGGER.warning(
+                "风扇 %s 手动控制未保持，延迟读回 mode=%s pwm=%s",
+                fan.get("name", fan.get("id")),
+                actual_mode,
+                actual_pwm,
+            )
+        return success
+
     def _build_write_command(self, path: str, value: int) -> str:
         quoted_path = shlex.quote(path)
         script = (
@@ -1378,6 +1427,34 @@ fi
             f"&& actual=$(cat {quoted_path} 2>/dev/null) "
             f"&& [ \"$actual\" = \"$expected\" ]; then "
             f"echo {OK_TOKEN}; else echo {ERROR_TOKEN}; fi"
+        )
+        return f"sh -c {shlex.quote(script)}"
+
+    def _build_manual_pwm_command(
+        self,
+        mode_path: str,
+        pwm_path: str,
+        pwm_raw: int,
+    ) -> str:
+        quoted_mode_path = shlex.quote(mode_path)
+        quoted_pwm_path = shlex.quote(pwm_path)
+        script = (
+            f"expected_mode={self._single_quote(MODE_TO_PWM_ENABLE[CONTROL_MODE_MANUAL])}; "
+            f"expected_pwm={self._single_quote(pwm_raw)}; write_ok=1; "
+            f"printf %s \"$expected_mode\" > {quoted_mode_path} || write_ok=0; "
+            f"if [ \"$write_ok\" = 1 ]; then "
+            f"printf %s \"$expected_pwm\" > {quoted_pwm_path} || write_ok=0; fi; "
+            f"if [ \"$write_ok\" = 1 ]; then "
+            f"printf %s \"$expected_mode\" > {quoted_mode_path} || write_ok=0; fi; "
+            f"sleep 1; "
+            f"actual_mode=$(cat {quoted_mode_path} 2>/dev/null); "
+            f"actual_pwm=$(cat {quoted_pwm_path} 2>/dev/null); "
+            f"if [ \"$write_ok\" = 1 ] "
+            f"&& [ \"$actual_mode\" = \"$expected_mode\" ] "
+            f"&& [ \"$actual_pwm\" = \"$expected_pwm\" ]; then "
+            f"printf '{OK_TOKEN} mode=%s pwm=%s\\n' \"$actual_mode\" \"$actual_pwm\"; "
+            f"else printf '{ERROR_TOKEN} mode=%s pwm=%s\\n' "
+            f"\"$actual_mode\" \"$actual_pwm\"; fi"
         )
         return f"sh -c {shlex.quote(script)}"
 

@@ -582,6 +582,7 @@ class FanSensor(CoordinatorEntity, SensorEntity):
             "自动模式支持": fan.get("supports_auto_mode", False),
             "可用模式": fan.get("available_modes", []),
             "最低安全PWM": fan.get("minimum_pwm_percent"),
+            "最近控制结果": fan.get("last_control_result"),
         }
 
 class FanDiscoverySensor(CoordinatorEntity, SensorEntity):

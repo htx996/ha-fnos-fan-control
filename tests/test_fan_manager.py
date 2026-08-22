@@ -464,11 +464,12 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(await manager.set_percentage(fan, 0))
 
-        self.assertEqual(len(coordinator.commands), 2)
+        self.assertEqual(len(coordinator.commands), 1)
         self.assertIn("pwm3_enable", coordinator.commands[0])
         self.assertIn("'1'", coordinator.commands[0])
-        self.assertIn("pwm3", coordinator.commands[1])
-        self.assertIn("'80'", coordinator.commands[1])
+        self.assertIn("pwm3", coordinator.commands[0])
+        self.assertIn("'80'", coordinator.commands[0])
+        self.assertIn("sleep 1", coordinator.commands[0])
         self.assertEqual(fan["pwm_raw"], 80)
         self.assertEqual(fan["pwm_percent"], 31)
         self.assertEqual(fan["control_mode"], CONTROL_MODE_MANUAL)
@@ -510,13 +511,41 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(await manager.set_mode(fan, CONTROL_MODE_MANUAL))
 
-        self.assertEqual(len(coordinator.commands), 2)
+        self.assertEqual(len(coordinator.commands), 1)
         self.assertIn("pwm3_enable", coordinator.commands[0])
         self.assertIn("'1'", coordinator.commands[0])
-        self.assertIn("pwm3", coordinator.commands[1])
-        self.assertIn("'128'", coordinator.commands[1])
+        self.assertIn("pwm3", coordinator.commands[0])
+        self.assertIn("'128'", coordinator.commands[0])
         self.assertEqual(fan["control_mode"], CONTROL_MODE_MANUAL)
         self.assertEqual(fan["pwm_percent"], 50)
+
+    async def test_manual_pwm_transaction_records_delayed_readback_failure(self):
+        coordinator = FakeCoordinator(
+            ["__FN_NAS_ERROR__ mode=0 pwm=255"]
+        )
+        manager = FanManager(coordinator)
+        fan = {
+            "name": "系统风扇",
+            "pwm_path": "/sys/class/hwmon/hwmon5/pwm3",
+            "pwm_enable_path": "/sys/class/hwmon/hwmon5/pwm3_enable",
+            "supports_manual_mode": True,
+            "supports_modes": True,
+            "supports_pwm": True,
+        }
+
+        with self.assertLogs(fan_manager._LOGGER, level="WARNING"):
+            self.assertFalse(await manager.set_percentage(fan, 50))
+
+        self.assertEqual(
+            fan["last_control_result"],
+            {
+                "success": False,
+                "requested_mode": 1,
+                "requested_pwm": 128,
+                "actual_mode": 0,
+                "actual_pwm": 255,
+            },
+        )
 
     def test_sysfs_write_command_reads_back_the_requested_value(self):
         command = FanManager(FakeCoordinator())._build_write_command(
@@ -539,11 +568,11 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(await manager.set_percentage(fan, 50))
 
-        self.assertEqual(len(coordinator.commands), 2)
+        self.assertEqual(len(coordinator.commands), 1)
         self.assertIn("pwm1_enable", coordinator.commands[0])
         self.assertIn("'1'", coordinator.commands[0])
-        self.assertIn("pwm1", coordinator.commands[1])
-        self.assertIn("'128'", coordinator.commands[1])
+        self.assertIn("pwm1", coordinator.commands[0])
+        self.assertIn("'128'", coordinator.commands[0])
 
     async def test_set_full_speed_falls_back_to_manual_100_percent_if_pwm_enable_zero_fails(self):
         def response(command):
@@ -562,13 +591,13 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(await manager.set_mode(fan, CONTROL_MODE_FULL_SPEED))
 
-        self.assertEqual(len(coordinator.commands), 3)
+        self.assertEqual(len(coordinator.commands), 2)
         self.assertIn("pwm1_enable", coordinator.commands[0])
         self.assertIn("'0'", coordinator.commands[0])
         self.assertIn("pwm1_enable", coordinator.commands[1])
         self.assertIn("'1'", coordinator.commands[1])
-        self.assertIn("pwm1", coordinator.commands[2])
-        self.assertIn("'255'", coordinator.commands[2])
+        self.assertIn("pwm1", coordinator.commands[1])
+        self.assertIn("'255'", coordinator.commands[1])
 
 
 if __name__ == "__main__":

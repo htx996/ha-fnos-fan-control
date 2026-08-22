@@ -94,6 +94,7 @@ class FanModeSelect(CoordinatorEntity, SelectEntity):
             "模式控制支持": fan.get("supports_modes", False),
             "自动模式支持": fan.get("supports_auto_mode", False),
             "可用模式": fan.get("available_modes", []),
+            "最近控制结果": fan.get("last_control_result"),
             "hwmon路径": fan.get("hwmon_path"),
             "芯片": fan.get("chip"),
         }
