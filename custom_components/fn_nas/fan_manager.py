@@ -25,6 +25,8 @@ MODE_TO_PWM_ENABLE = {
 OK_TOKEN = "__FN_NAS_OK__"
 ERROR_TOKEN = "__FN_NAS_ERROR__"
 
+DXP4800PRO_MINIMUM_PWM_RAW = 80
+
 
 class FanManager:
     """Read and control fan hwmon data through the coordinator SSH layer."""
@@ -154,6 +156,18 @@ class FanManager:
                 if pwm_enable is not None
                 else None
             )
+            supports_pwm = has_pwm and pwm_writable
+            supports_manual_mode = pwm_enable_path is not None and mode_writable
+            manual_only = self._is_dxp4800pro_it8613(
+                chip_name,
+                system_vendor,
+                product_name,
+            )
+            minimum_pwm_raw = (
+                DXP4800PRO_MINIMUM_PWM_RAW
+                if manual_only and supports_pwm
+                else None
+            )
 
             fans.append(
                 {
@@ -171,8 +185,12 @@ class FanManager:
                     "pwm_percent": self._pwm_raw_to_percent(pwm_raw) if has_pwm else None,
                     "pwm_enable": pwm_enable,
                     "control_mode": control_mode,
-                    "supports_pwm": has_pwm and pwm_writable,
-                    "supports_modes": pwm_enable_path is not None and mode_writable,
+                    "supports_pwm": supports_pwm,
+                    "supports_manual_mode": supports_manual_mode,
+                    "supports_modes": supports_manual_mode and not manual_only,
+                    "manual_only": manual_only,
+                    "minimum_pwm_raw": minimum_pwm_raw,
+                    "minimum_pwm_percent": self._pwm_raw_to_percent(minimum_pwm_raw),
                 }
             )
 
@@ -234,6 +252,19 @@ class FanManager:
                 continue
             seen_ids.add(fan_id)
 
+            supports_pwm = has_pwm and pwm_writable and bool(pwm_path)
+            supports_manual_mode = bool(pwm_enable_path) and mode_writable
+            manual_only = self._is_dxp4800pro_it8613(
+                chip_name,
+                system_vendor,
+                product_name,
+            )
+            minimum_pwm_raw = (
+                DXP4800PRO_MINIMUM_PWM_RAW
+                if manual_only and supports_pwm
+                else None
+            )
+
             fans.append(
                 {
                     "id": fan_id,
@@ -250,8 +281,12 @@ class FanManager:
                     "pwm_percent": self._pwm_raw_to_percent(pwm_raw) if has_pwm else None,
                     "pwm_enable": pwm_enable,
                     "control_mode": self._control_mode_from_enable(pwm_enable),
-                    "supports_pwm": has_pwm and pwm_writable and bool(pwm_path),
-                    "supports_modes": bool(pwm_enable_path) and mode_writable,
+                    "supports_pwm": supports_pwm,
+                    "supports_manual_mode": supports_manual_mode,
+                    "supports_modes": supports_manual_mode and not manual_only,
+                    "manual_only": manual_only,
+                    "minimum_pwm_raw": minimum_pwm_raw,
+                    "minimum_pwm_percent": self._pwm_raw_to_percent(minimum_pwm_raw),
                 }
             )
 
@@ -290,7 +325,11 @@ class FanManager:
                     "pwm_enable": None,
                     "control_mode": None,
                     "supports_pwm": False,
+                    "supports_manual_mode": False,
                     "supports_modes": False,
+                    "manual_only": False,
+                    "minimum_pwm_raw": None,
+                    "minimum_pwm_percent": None,
                 }
             )
 
@@ -745,9 +784,17 @@ class FanManager:
 
         pwm_percent = max(0, min(100, int(round(float(percentage)))))
         pwm_raw = self._percent_to_pwm_raw(pwm_percent)
+        minimum_pwm_raw = self._to_int(fan.get("minimum_pwm_raw"))
+        if minimum_pwm_raw is not None and pwm_raw < minimum_pwm_raw:
+            pwm_raw = minimum_pwm_raw
+            pwm_percent = self._pwm_raw_to_percent(pwm_raw)
 
         # Most hwmon drivers require manual mode before pwmN writes take effect.
-        if fan.get("supports_modes") and fan.get("pwm_enable_path"):
+        supports_manual_mode = fan.get(
+            "supports_manual_mode",
+            fan.get("supports_modes", False),
+        )
+        if supports_manual_mode and fan.get("pwm_enable_path"):
             if not await self._write_sysfs(fan["pwm_enable_path"], MODE_TO_PWM_ENABLE[CONTROL_MODE_MANUAL]):
                 _LOGGER.warning("无法将风扇 %s 切换到手动模式", fan.get("name", fan.get("id")))
                 return False
@@ -767,6 +814,19 @@ class FanManager:
         if mode not in MODE_TO_PWM_ENABLE:
             return False
 
+        if fan.get("manual_only") and mode != CONTROL_MODE_MANUAL:
+            _LOGGER.debug(
+                "风扇 %s 未启用未经验证的硬件模式: %s",
+                fan.get("name", fan.get("id")),
+                mode,
+            )
+            return False
+
+        supports_manual_mode = fan.get(
+            "supports_manual_mode",
+            fan.get("supports_modes", False),
+        )
+
         if mode == CONTROL_MODE_FULL_SPEED:
             if fan.get("supports_modes") and fan.get("pwm_enable_path"):
                 if await self._write_sysfs(fan["pwm_enable_path"], MODE_TO_PWM_ENABLE[mode]):
@@ -780,7 +840,7 @@ class FanManager:
 
             return await self.set_percentage(fan, 100)
 
-        if not fan.get("supports_modes") or not fan.get("pwm_enable_path"):
+        if not supports_manual_mode or not fan.get("pwm_enable_path"):
             return False
 
         if not await self._write_sysfs(fan["pwm_enable_path"], MODE_TO_PWM_ENABLE[mode]):
@@ -1304,9 +1364,13 @@ fi
         return OK_TOKEN in result and ERROR_TOKEN not in result
 
     def _build_write_command(self, path: str, value: int) -> str:
+        quoted_path = shlex.quote(path)
         script = (
-            f"printf %s {self._single_quote(value)} > {shlex.quote(path)} "
-            f"&& echo {OK_TOKEN} || echo {ERROR_TOKEN}"
+            f"expected={self._single_quote(value)}; "
+            f"if printf %s \"$expected\" > {quoted_path} "
+            f"&& actual=$(cat {quoted_path} 2>/dev/null) "
+            f"&& [ \"$actual\" = \"$expected\" ]; then "
+            f"echo {OK_TOKEN}; else echo {ERROR_TOKEN}; fi"
         )
         return f"sh -c {shlex.quote(script)}"
 
@@ -1323,13 +1387,22 @@ fi
         index: int,
     ) -> bool:
         """Reject unwired IT8613 channels on the exact DXP4800 Pro model."""
-        if (
-            chip_name.strip().lower() == "it8613"
-            and system_vendor.strip().upper() == "UGREEN"
-            and product_name.strip() == "DXP4800 Pro"
-        ):
+        if self._is_dxp4800pro_it8613(chip_name, system_vendor, product_name):
             return index in {2, 3}
         return True
+
+    def _is_dxp4800pro_it8613(
+        self,
+        chip_name: str,
+        system_vendor: str,
+        product_name: str,
+    ) -> bool:
+        """Identify the exact board whose IT8613 auto curve is unverified."""
+        return (
+            (chip_name or "").strip().lower() == "it8613"
+            and (system_vendor or "").strip().upper() == "UGREEN"
+            and (product_name or "").strip() == "DXP4800 Pro"
+        )
 
     def _default_fan_name(
         self,
@@ -1339,11 +1412,7 @@ fi
         index: int,
     ) -> str:
         """Return model-aware names when hwmon does not provide labels."""
-        if (
-            chip_name.strip().lower() == "it8613"
-            and system_vendor.strip().upper() == "UGREEN"
-            and product_name.strip() == "DXP4800 Pro"
-        ):
+        if self._is_dxp4800pro_it8613(chip_name, system_vendor, product_name):
             return {2: "CPU 风扇", 3: "系统风扇"}.get(index, f"风扇 {index}")
         return f"风扇 {index}"
 

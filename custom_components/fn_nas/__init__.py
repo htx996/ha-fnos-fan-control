@@ -21,7 +21,7 @@ def _remove_dxp4800pro_ghost_fan_entities(
     entry: ConfigEntry,
     diagnostics: dict,
 ) -> None:
-    """Remove IT8613 channels which are not wired on the DXP4800 Pro."""
+    """Remove unwired channels and unsafe mode selectors on the DXP4800 Pro."""
     hardware = diagnostics.get("host_hardware", {})
     if (
         hardware.get("sys_vendor", "").upper() != "UGREEN"
@@ -32,20 +32,26 @@ def _remove_dxp4800pro_ghost_fan_entities(
     ghost_unique_id = re.compile(
         rf"^{re.escape(entry.entry_id)}_fan_it8613_fan(?:1|4|5)_"
     )
+    unsafe_mode_unique_id = re.compile(
+        rf"^{re.escape(entry.entry_id)}_fan_it8613_fan(?:2|3)_.+_mode$"
+    )
     registry = er.async_get(hass)
     removed = []
     for entity_id, registry_entry in list(registry.entities.items()):
         if (
             registry_entry.config_entry_id != entry.entry_id
             or registry_entry.platform != DOMAIN
-            or not ghost_unique_id.match(registry_entry.unique_id)
+            or not (
+                ghost_unique_id.match(registry_entry.unique_id)
+                or unsafe_mode_unique_id.match(registry_entry.unique_id)
+            )
         ):
             continue
         registry.async_remove(entity_id)
         removed.append(entity_id)
 
     if removed:
-        _LOGGER.info("已清理 DXP4800 Pro 未接线风扇实体: %s", ", ".join(removed))
+        _LOGGER.info("已清理 DXP4800 Pro 不安全或无效风扇实体: %s", ", ".join(removed))
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     config = {**entry.data, **entry.options}

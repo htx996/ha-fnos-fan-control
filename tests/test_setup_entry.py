@@ -160,6 +160,21 @@ class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
                     platform="fn_nas",
                     unique_id="entry-1_fan_it8613_fan2_a1b2c3d4",
                 ),
+                "select.cpu_mode": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan2_a1b2c3d4_mode",
+                ),
+                "select.system_mode": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan3_a1b2c3d4_mode",
+                ),
+                "sensor.cpu_mode": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan2_a1b2c3d4_mode_sensor",
+                ),
                 "select.ghost_4": types.SimpleNamespace(
                     config_entry_id="entry-1",
                     platform="fn_nas",
@@ -190,7 +205,13 @@ class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(
             hass.entity_registry.removed,
-            ["fan.ghost_1", "select.ghost_4", "sensor.ghost_5"],
+            [
+                "fan.ghost_1",
+                "select.cpu_mode",
+                "select.system_mode",
+                "select.ghost_4",
+                "sensor.ghost_5",
+            ],
         )
 
     async def test_setup_entry_forwards_platforms_before_returning(self):

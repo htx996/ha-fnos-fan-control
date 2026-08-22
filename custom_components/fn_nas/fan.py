@@ -160,6 +160,8 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
             "控制模式": fan.get("control_mode"),
             "PWM控制支持": fan.get("supports_pwm", False),
             "模式控制支持": fan.get("supports_modes", False),
+            "仅手动控制": fan.get("manual_only", False),
+            "最低安全PWM": fan.get("minimum_pwm_percent"),
             "hwmon路径": fan.get("hwmon_path"),
             "芯片": fan.get("chip"),
         }

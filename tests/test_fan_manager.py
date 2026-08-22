@@ -433,6 +433,62 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([fan["index"] for fan in fans], [2, 3])
         self.assertEqual([fan["name"] for fan in fans], ["CPU 风扇", "系统风扇"])
         self.assertTrue(all(fan["supports_pwm"] for fan in fans))
+        self.assertTrue(all(fan["supports_manual_mode"] for fan in fans))
+        self.assertTrue(all(fan["manual_only"] for fan in fans))
+        self.assertTrue(all(not fan["supports_modes"] for fan in fans))
+        self.assertTrue(all(fan["minimum_pwm_raw"] == 80 for fan in fans))
+        self.assertTrue(all(fan["minimum_pwm_percent"] == 31 for fan in fans))
+
+    async def test_dxp4800pro_clamps_low_pwm_and_forces_verified_manual_mode(self):
+        coordinator = FakeCoordinator()
+        manager = FanManager(coordinator)
+        fan = {
+            "name": "系统风扇",
+            "pwm_path": "/sys/class/hwmon/hwmon5/pwm3",
+            "pwm_enable_path": "/sys/class/hwmon/hwmon5/pwm3_enable",
+            "supports_manual_mode": True,
+            "supports_modes": False,
+            "supports_pwm": True,
+            "manual_only": True,
+            "minimum_pwm_raw": 80,
+            "minimum_pwm_percent": 31,
+        }
+
+        self.assertTrue(await manager.set_percentage(fan, 0))
+
+        self.assertEqual(len(coordinator.commands), 2)
+        self.assertIn("pwm3_enable", coordinator.commands[0])
+        self.assertIn("'1'", coordinator.commands[0])
+        self.assertIn("pwm3", coordinator.commands[1])
+        self.assertIn("'80'", coordinator.commands[1])
+        self.assertEqual(fan["pwm_raw"], 80)
+        self.assertEqual(fan["pwm_percent"], 31)
+        self.assertEqual(fan["control_mode"], CONTROL_MODE_MANUAL)
+
+    async def test_dxp4800pro_rejects_unverified_hardware_auto_and_full_speed_modes(self):
+        coordinator = FakeCoordinator()
+        manager = FanManager(coordinator)
+        fan = {
+            "pwm_path": "/sys/class/hwmon/hwmon5/pwm3",
+            "pwm_enable_path": "/sys/class/hwmon/hwmon5/pwm3_enable",
+            "supports_manual_mode": True,
+            "supports_modes": False,
+            "supports_pwm": True,
+            "manual_only": True,
+        }
+
+        self.assertFalse(await manager.set_mode(fan, CONTROL_MODE_AUTO))
+        self.assertFalse(await manager.set_mode(fan, CONTROL_MODE_FULL_SPEED))
+        self.assertEqual(coordinator.commands, [])
+
+    def test_sysfs_write_command_reads_back_the_requested_value(self):
+        command = FanManager(FakeCoordinator())._build_write_command(
+            "/sys/class/hwmon/hwmon5/pwm3_enable",
+            1,
+        )
+
+        self.assertIn("actual=$(cat", command)
+        self.assertIn('[ "$actual" = "$expected" ]', command)
 
     async def test_set_percentage_switches_to_manual_mode_and_writes_scaled_pwm_value(self):
         coordinator = FakeCoordinator()
