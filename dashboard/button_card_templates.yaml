@@ -83,7 +83,7 @@ button_card_templates:
         - font-size: |
             [[[
               const role = entity.attributes.fn_nas_dashboard_role;
-              return ['status', 'os_version'].includes(role) ? '17px' : '20px';
+              return ['status', 'os_version'].includes(role) ? '14px' : '20px';
             ]]]
         - font-weight: 650
         - line-height: 28px

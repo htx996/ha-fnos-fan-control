@@ -2,7 +2,7 @@ title: 飞牛NAS
 path: fn-nas
 icon: mdi:nas
 type: sections
-max_columns: 3
+max_columns: 2
 dense_section_placement: true
 background: "#11181c"
 card_mod:
@@ -52,6 +52,9 @@ sections:
               background: transparent;
               box-shadow: none;
             }
+            ha-card img {
+              object-fit: contain !important;
+            }
 
       - type: custom:auto-entities
         show_empty: false
@@ -73,86 +76,11 @@ sections:
           method: attribute
           attribute: fn_nas_dashboard_order
           numeric: true
-    column_span: 1
 
   - type: grid
     cards:
       - type: heading
-        heading: 存储详情
-        heading_style: title
-        icon: mdi:database-outline
-        card_mod:
-          style: |
-            :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
-            }
-        grid_options:
-          columns: 12
-          rows: 1
-
-      - type: custom:auto-entities
-        show_empty: false
-        card:
-          type: grid
-          columns: 2
-          square: false
-        card_param: cards
-        filter:
-          include:
-            - integration: fn_nas
-              domain: sensor
-              attributes:
-                fn_nas_dashboard_category: storage
-              options:
-                type: custom:button-card
-                template: fn_nas_volume
-        sort:
-          method: name
-          ignore_case: true
-
-      - type: heading
-        heading: 硬盘
-        heading_style: subtitle
-        icon: mdi:harddisk
-        card_mod:
-          style: |
-            :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
-            }
-        grid_options:
-          columns: 12
-          rows: 1
-
-      - type: custom:auto-entities
-        show_empty: false
-        card:
-          type: grid
-          columns: 2
-          square: false
-        card_param: cards
-        filter:
-          include:
-            - integration: fn_nas
-              domain: sensor
-              attributes:
-                fn_nas_dashboard_category: disk
-                fn_nas_dashboard_role: temperature
-              options:
-                type: custom:button-card
-                template: fn_nas_disk
-        sort:
-          method: name
-          ignore_case: true
-    column_span: 1
-
-  - type: grid
-    cards:
-      - type: heading
-        heading: 控制
+        heading: 运行与控制
         heading_style: title
         icon: mdi:tune-variant
         card_mod:
@@ -169,8 +97,22 @@ sections:
       - type: custom:auto-entities
         show_empty: false
         card:
-          type: vertical-stack
-        card_param: cards
+          type: entities
+          state_color: true
+          card_mod:
+            style: |
+              ha-card {
+                background: transparent;
+                border: none;
+                box-shadow: none;
+                color: #f4f7f8;
+                --primary-text-color: #f4f7f8;
+                --secondary-text-color: #aebbc2;
+              }
+              #states {
+                padding: 0 8px !important;
+              }
+        card_param: entities
         filter:
           include:
             - integration: fn_nas
@@ -178,23 +120,7 @@ sections:
               attributes:
                 fn_nas_dashboard_category: control
               options:
-                type: tile
                 name: 风扇控制模式
-                vertical: false
-                hide_state: false
-                tap_action:
-                  action: more-info
-                card_mod:
-                  style: |
-                    ha-card {
-                      min-height: 64px;
-                      background: transparent;
-                      border: none;
-                      box-shadow: none;
-                      color: #f4f7f8;
-                      --primary-text-color: #f4f7f8;
-                      --secondary-text-color: #aebbc2;
-                    }
         sort:
           method: attribute
           attribute: fn_nas_dashboard_order
@@ -267,12 +193,11 @@ sections:
         sort:
           method: name
           ignore_case: true
-    column_span: 1
 
   - type: grid
     cards:
       - type: heading
-        heading: 温度趋势
+        heading: 运行监控
         heading_style: title
         icon: mdi:chart-line
         card_mod:
@@ -363,13 +288,10 @@ sections:
               domain: sensor
               attributes:
                 fn_nas_dashboard_role: motherboard_temperature
-    column_span: 1
 
-  - type: grid
-    cards:
       - type: heading
         heading: UPS
-        heading_style: title
+        heading_style: subtitle
         icon: mdi:battery-charging-medium
         card_mod:
           style: |
@@ -402,13 +324,98 @@ sections:
           method: attribute
           attribute: fn_nas_dashboard_order
           numeric: true
-    column_span: 1
 
   - type: grid
     cards:
       - type: heading
-        heading: 虚拟机
+        heading: 设备详情
         heading_style: title
+        icon: mdi:database-outline
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
+        grid_options:
+          columns: 12
+          rows: 1
+
+      - type: heading
+        heading: 存储空间
+        heading_style: subtitle
+        icon: mdi:database
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
+        grid_options:
+          columns: 12
+          rows: 1
+
+      - type: custom:auto-entities
+        show_empty: false
+        card:
+          type: grid
+          columns: 2
+          square: false
+        card_param: cards
+        filter:
+          include:
+            - integration: fn_nas
+              domain: sensor
+              attributes:
+                fn_nas_dashboard_category: storage
+              options:
+                type: custom:button-card
+                template: fn_nas_volume
+        sort:
+          method: name
+          ignore_case: true
+
+      - type: heading
+        heading: 硬盘
+        heading_style: subtitle
+        icon: mdi:harddisk
+        card_mod:
+          style: |
+            :host {
+              color: #f4f7f8;
+              --primary-text-color: #f4f7f8;
+              --secondary-text-color: #aebbc2;
+            }
+        grid_options:
+          columns: 12
+          rows: 1
+
+      - type: custom:auto-entities
+        show_empty: false
+        card:
+          type: grid
+          columns: 2
+          square: false
+        card_param: cards
+        filter:
+          include:
+            - integration: fn_nas
+              domain: sensor
+              attributes:
+                fn_nas_dashboard_category: disk
+                fn_nas_dashboard_role: temperature
+              options:
+                type: custom:button-card
+                template: fn_nas_disk
+        sort:
+          method: name
+          ignore_case: true
+
+      - type: heading
+        heading: 虚拟机与容器
+        heading_style: subtitle
         icon: mdi:server
         card_mod:
           style: |
@@ -438,34 +445,6 @@ sections:
                 template: fn_nas_control
                 tap_action:
                   action: more-info
-        sort:
-          method: name
-          ignore_case: true
-
-      - type: heading
-        heading: Docker
-        heading_style: subtitle
-        icon: mdi:docker
-        card_mod:
-          style: |
-            :host {
-              color: #f4f7f8;
-              --primary-text-color: #f4f7f8;
-              --secondary-text-color: #aebbc2;
-            }
-        grid_options:
-          columns: 12
-          rows: 1
-
-      - type: custom:auto-entities
-        show_empty: false
-        card:
-          type: grid
-          columns: 2
-          square: false
-        card_param: cards
-        filter:
-          include:
             - integration: fn_nas
               attributes:
                 fn_nas_dashboard_category: docker
@@ -477,4 +456,3 @@ sections:
         sort:
           method: name
           ignore_case: true
-    column_span: 1

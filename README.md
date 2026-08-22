@@ -93,6 +93,8 @@ https://github.com/htx996/ha-fnos-fan-control
 
 仓库提供一套可选的中文 Lovelace 仪表盘，使用实体分类属性自动显示系统、存储卷、硬盘、风扇、UPS、虚拟机和 Docker。硬件数量变化后页面会自动适配，不需要填写 `hwmonX` 或逐个绑定硬盘实体。
 
+页面组织参考了 [`Tom-Bom-badil/home-assistant_ugreen-nas`](https://github.com/Tom-Bom-badil/home-assistant_ugreen-nas) 的动态仪表盘思路：集成向实体附加稳定分类，Lovelace 再按分类生成概览、汇总和详情。当前实现使用原创 YAML 和本仓库图片，并改为最多两栏布局，避免参考页面固定高度、固定卡片列数在 Pad 和手机上的适配限制。
+
 ### 准备前端卡片
 
 先在 HACS 的“前端”分类安装并启用：
@@ -115,7 +117,7 @@ https://github.com/htx996/ha-fnos-fan-control
 1. 打开目标仪表盘，进入编辑模式。
 2. 选择右上角菜单中的“原始配置编辑器”。
 3. 将 [`dashboard/button_card_templates.yaml`](dashboard/button_card_templates.yaml) 的内容合并到仪表盘顶层。
-4. 如果已有 `button_card_templates:`，只合并其中的 `fn_nas_metric` 和 `fn_nas_control`，不要重复创建顶层键，也不要覆盖现有 `views:`。
+4. 如果已有 `button_card_templates:`，只合并其中以 `fn_nas_` 开头的五个模板，不要重复创建顶层键，也不要覆盖现有 `views:`。
 
 ### 导入页面
 
@@ -155,6 +157,7 @@ HACS 不会自动修改用户的 Lovelace 仪表盘。后续版本如果更新�
 *   `1.3.29` 将仪表盘改为图形化容量、硬盘和风扇面板，并使用原生 Tile 提供模式与风扇速度控制
 *   `1.3.30` 压缩仪表盘各版块留白，移除重复的大型调速滑块；风扇动画卡直接显示 PWM 百分比，点击卡片仍可打开对应风扇实体调速
 *   `1.3.31` 将仪表盘拆分为六个响应式区块：PC 两排三列、Pad 三排两列、手机单列显示，并优化窄栏风扇 RPM 的完整显示
+*   `1.3.32` 参考 UGreen NAS 动态仪表盘的概览/汇总结构，将页面重排为四个功能区和最多两栏；PC、Pad 使用完整宽度双栏，手机自动单栏，风扇模式改为紧凑的原生下拉行，并优化窄屏长状态与设备图片显示
 *   不要同时在 LLLED 页面和 Home Assistant 中反复设置固定转速。两者使用同一 LLLED 控制器，最后一次操作会决定当前模式和 PWM
 *   本仓库不包含或复制 LLLED 的程序、二进制文件或源代码，只通过现有 SSH 层调用用户已经安装的 LLLED 接口
 *   从旧版本升级后如果风扇仍处于全速，请在模式下拉框选择“手动”，集成会自动恢复到 50%；也可以打开对应 fan 实体直接设置 40%-50%
