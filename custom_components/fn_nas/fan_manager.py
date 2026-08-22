@@ -33,8 +33,13 @@ class FanManager:
 
     def __init__(self, coordinator):
         self.coordinator = coordinator
+        self.llled_backend = getattr(coordinator, "llled_fan_backend", None)
         self.last_diagnostics = self._empty_diagnostics()
         self.last_control_results = {}
+        backend_state = getattr(self.llled_backend, "state", None)
+        self.control_state = (
+            backend_state if isinstance(backend_state, dict) else self._empty_control_state()
+        )
 
     async def get_fans_info(self) -> list[dict]:
         """Discover fan sensors and PWM controls from Linux hwmon."""
@@ -44,50 +49,158 @@ class FanManager:
         sysfs_output = ""
         inventory_output = ""
 
+        llled_state = self._empty_control_state()
+        if self.llled_backend is not None:
+            try:
+                llled_state = await self.llled_backend.get_status()
+            except Exception as e:
+                _LOGGER.debug("读取 LLLED 风扇状态失败: %s", str(e))
+                llled_state = self._empty_control_state()
+                llled_state["error"] = str(e)
+        self.control_state = llled_state
+
         try:
             hwmon_output = await self.coordinator.run_command(self._build_discovery_command())
             fans = self.parse_hwmon_snapshot(hwmon_output) if hwmon_output else []
+            if llled_state.get("available") and llled_state.get("fans"):
+                llled_fans = llled_state["fans"]
+                if fans:
+                    fans = self._merge_llled_fans(fans, llled_fans)
+                    source = "llled+hwmon"
+                else:
+                    fans = [dict(fan) for fan in llled_fans]
+                    source = "llled"
+                self.last_diagnostics = self._attach_llled_diagnostics(
+                    self._build_diagnostics(
+                        source,
+                        fans,
+                        hwmon_output,
+                        sensors_output,
+                        sensors_u_output,
+                        sysfs_output,
+                        inventory_output,
+                    ),
+                    llled_state,
+                )
+                return fans
+
             if fans:
-                self.last_diagnostics = self._build_diagnostics(
-                    "hwmon", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+                self.last_diagnostics = self._attach_llled_diagnostics(
+                    self._build_diagnostics(
+                        "hwmon", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+                    ),
+                    llled_state,
                 )
                 return fans
 
             sensors_output = await self.coordinator.run_command("sensors 2>/dev/null || true")
             fans = self.parse_sensors_output(sensors_output) if sensors_output else []
             if fans:
-                self.last_diagnostics = self._build_diagnostics(
-                    "sensors", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+                self.last_diagnostics = self._attach_llled_diagnostics(
+                    self._build_diagnostics(
+                        "sensors", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+                    ),
+                    llled_state,
                 )
                 return fans
 
             sensors_u_output = await self.coordinator.run_command("sensors -u 2>/dev/null || true")
             fans = self.parse_sensors_output(sensors_u_output) if sensors_u_output else []
             if fans:
-                self.last_diagnostics = self._build_diagnostics(
-                    "sensors -u", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+                self.last_diagnostics = self._attach_llled_diagnostics(
+                    self._build_diagnostics(
+                        "sensors -u", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+                    ),
+                    llled_state,
                 )
                 return fans
 
             sysfs_output = await self.coordinator.run_command(self._build_sysfs_discovery_command())
             fans = self.parse_sysfs_snapshot(sysfs_output) if sysfs_output else []
             if fans:
-                self.last_diagnostics = self._build_diagnostics(
-                    "sysfs", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+                self.last_diagnostics = self._attach_llled_diagnostics(
+                    self._build_diagnostics(
+                        "sysfs", fans, hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+                    ),
+                    llled_state,
                 )
                 return fans
 
             inventory_output = await self.coordinator.run_command(self._build_inventory_command())
-            self.last_diagnostics = self._build_diagnostics(
-                "none", [], hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+            self.last_diagnostics = self._attach_llled_diagnostics(
+                self._build_diagnostics(
+                    "none", [], hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output
+                ),
+                llled_state,
             )
             return []
         except Exception as e:
             _LOGGER.debug("获取风扇信息失败: %s", str(e))
-            self.last_diagnostics = self._build_diagnostics(
-                "error", [], hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output, str(e)
+            self.last_diagnostics = self._attach_llled_diagnostics(
+                self._build_diagnostics(
+                    "error", [], hwmon_output, sensors_output, sensors_u_output, sysfs_output, inventory_output, str(e)
+                ),
+                llled_state,
             )
             return []
+
+    def _merge_llled_fans(self, hwmon_fans: list[dict], llled_fans: list[dict]) -> list[dict]:
+        """Keep existing hwmon IDs while routing matching fans through LLLED."""
+        merged_fans = []
+        used_hwmon_ids = set()
+
+        for llled_fan in llled_fans:
+            channel = llled_fan.get("channel")
+            match = next(
+                (
+                    fan
+                    for fan in hwmon_fans
+                    if fan.get("id") not in used_hwmon_ids
+                    and self._hwmon_fan_matches_llled_channel(fan, channel)
+                ),
+                None,
+            )
+            if match is None:
+                merged_fans.append(dict(llled_fan))
+                continue
+
+            used_hwmon_ids.add(match["id"])
+            merged = dict(match)
+            preserved = {
+                key: match.get(key)
+                for key in (
+                    "id",
+                    "index",
+                    "hwmon_path",
+                    "device_path",
+                    "fan_input_path",
+                    "pwm_path",
+                    "pwm_enable_path",
+                )
+            }
+            merged.update(llled_fan)
+            merged.update(preserved)
+            merged["backend"] = "llled"
+            merged_fans.append(merged)
+
+        merged_fans.extend(
+            fan for fan in hwmon_fans if fan.get("id") not in used_hwmon_ids
+        )
+        return merged_fans
+
+    def _hwmon_fan_matches_llled_channel(self, fan: dict, channel: str | None) -> bool:
+        name = str(fan.get("name") or "").lower()
+        chip = str(fan.get("chip") or "").lower()
+        index = self._to_int(fan.get("index"))
+        if channel == "cpu":
+            return "cpu" in name or (chip == "it8613" and index == 2)
+        if channel == "sys":
+            return any(token in name for token in ("system", "系统")) or (
+                chip == "it8613" and index == 3
+            )
+        if channel == "sys2":
+            return any(token in name for token in ("system 2", "系统风扇 2"))
+        return False
 
     def parse_hwmon_snapshot(self, output: str) -> list[dict]:
         """Parse tab-separated hwmon records produced by the discovery command."""
@@ -776,6 +889,17 @@ class FanManager:
 
     async def set_percentage(self, fan: dict, percentage: int | float) -> bool:
         """Set a PWM fan to a Home Assistant percentage value."""
+        if fan.get("backend") == "llled":
+            if self.llled_backend is None or not fan.get("channel"):
+                return False
+            success = await self.llled_backend.set_percentage(
+                fan["channel"], percentage
+            )
+            self.control_state = self.llled_backend.state
+            if success:
+                self._sync_llled_fan_state(fan)
+            return success
+
         if not fan.get("supports_pwm") or not fan.get("pwm_path"):
             return False
 
@@ -803,6 +927,14 @@ class FanManager:
         fan["control_mode"] = CONTROL_MODE_MANUAL
         fan["pwm_enable"] = MODE_TO_PWM_ENABLE[CONTROL_MODE_MANUAL]
         return True
+
+    async def set_global_mode(self, mode: str) -> bool:
+        """Set the global LLLED fan controller mode."""
+        if self.llled_backend is None:
+            return False
+        success = await self.llled_backend.set_mode(mode)
+        self.control_state = self.llled_backend.state
+        return success
 
     async def set_mode(self, fan: dict, mode: str) -> bool:
         """Set the hwmon control mode when pwmN_enable is writable."""
@@ -1561,6 +1693,72 @@ fi
     def _single_quote(self, value: int | str) -> str:
         return "'" + str(value).replace("'", "'\"'\"'") + "'"
 
+    def _sync_llled_fan_state(self, fan: dict) -> None:
+        channel = fan.get("channel")
+        for current in self.control_state.get("fans", []):
+            if current.get("channel") != channel:
+                continue
+            stable_identity = {
+                key: fan.get(key)
+                for key in (
+                    "id",
+                    "index",
+                    "hwmon_path",
+                    "device_path",
+                    "fan_input_path",
+                    "pwm_path",
+                    "pwm_enable_path",
+                )
+            }
+            fan.update(current)
+            fan.update(stable_identity)
+            return
+
+    def _empty_control_state(self) -> dict:
+        return {
+            "installed": False,
+            "available": False,
+            "backend": None,
+            "supports_control": False,
+            "supports_modes": False,
+            "available_modes": [],
+            "mode": None,
+            "curve_running": False,
+            "fans": [],
+            "error": None,
+        }
+
+    def _attach_llled_diagnostics(self, diagnostics: dict, state: dict) -> dict:
+        diagnostics["llled"] = {
+            key: state.get(key)
+            for key in (
+                "installed",
+                "available",
+                "api_path",
+                "model",
+                "hardware_backend",
+                "supports_control",
+                "mode",
+                "curve_running",
+                "curve_enabled",
+                "stock_profile",
+                "write_confirmation_required",
+                "write_confirmation_acknowledged",
+                "cpu_temperature",
+                "hdd_temperature",
+                "ssd_temperature",
+                "desired_cpu_pwm",
+                "desired_system_pwm",
+                "applied_cpu_pwm",
+                "applied_system_pwm",
+                "error",
+            )
+            if state.get(key) is not None
+        }
+        if state.get("available"):
+            diagnostics["hint"] = "已通过 LLLED 风扇后端读取状态；自动模式由 LLLED 温控守护进程负责"
+        return diagnostics
+
     def _empty_diagnostics(self) -> dict:
         return {
             "status": "未扫描",
@@ -1596,6 +1794,7 @@ fi
                 "api_status": "",
             },
             "diagnostic_tools": {},
+            "llled": {},
             "hint": "等待下一次扫描",
         }
 

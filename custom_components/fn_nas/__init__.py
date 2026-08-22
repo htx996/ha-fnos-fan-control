@@ -47,6 +47,35 @@ def _remove_dxp4800pro_ghost_fan_entities(
     if removed:
         _LOGGER.info("已清理 DXP4800 Pro 未接线风扇实体: %s", ", ".join(removed))
 
+
+def _remove_superseded_llled_mode_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    fan_control: dict,
+) -> None:
+    """Remove per-fan mode selects replaced by LLLED's global controller."""
+    if fan_control.get("backend") != "llled" or not fan_control.get("available"):
+        return
+
+    old_mode_unique_id = re.compile(
+        rf"^{re.escape(entry.entry_id)}_fan_.+_mode$"
+    )
+    registry = er.async_get(hass)
+    removed = []
+    for entity_id, registry_entry in list(registry.entities.items()):
+        if (
+            not entity_id.startswith("select.")
+            or registry_entry.config_entry_id != entry.entry_id
+            or registry_entry.platform != DOMAIN
+            or not old_mode_unique_id.match(registry_entry.unique_id)
+        ):
+            continue
+        registry.async_remove(entity_id)
+        removed.append(entity_id)
+
+    if removed:
+        _LOGGER.info("已清理由 LLLED 全局模式替代的旧风扇模式实体: %s", ", ".join(removed))
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     config = {**entry.data, **entry.options}
     coordinator = FlynasCoordinator(hass, config, entry)
@@ -83,6 +112,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass,
         entry,
         coordinator.data.get("fan_diagnostics", {}),
+    )
+    _remove_superseded_llled_mode_entities(
+        hass,
+        entry,
+        coordinator.data.get("fan_control", {}),
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

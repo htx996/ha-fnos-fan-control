@@ -18,6 +18,7 @@ from .ups_manager import UPSManager
 from .vm_manager import VMManager
 from .docker_manager import DockerManager
 from .fan_manager import FanManager
+from .llled_fan_backend import LLLEDFanBackend
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class FlynasCoordinator(DataUpdateCoordinator):
         self.ssh_pool_lock = asyncio.Lock()
         self.ups_manager = UPSManager(self)
         self.vm_manager = VMManager(self)
+        self.llled_fan_backend = LLLEDFanBackend(self)
         self.fan_manager = FanManager(self)
         self.use_sudo = False
         
@@ -83,6 +85,7 @@ class FlynasCoordinator(DataUpdateCoordinator):
             "vms": [],
             "docker_containers": [],
             "fans": [],
+            "fan_control": {},
             "fan_diagnostics": {}
         }
     
@@ -427,6 +430,7 @@ class FlynasCoordinator(DataUpdateCoordinator):
                 "vms": vms,
                 "docker_containers": docker_containers,
                 "fans": fans,
+                "fan_control": self.fan_manager.control_state,
                 "fan_diagnostics": fan_diagnostics
             }
             

@@ -20,9 +20,10 @@ FanManager = fan_manager.FanManager
 
 
 class FakeCoordinator:
-    def __init__(self, responses=None):
+    def __init__(self, responses=None, llled_backend=None):
         self.responses = responses or []
         self.commands = []
+        self.llled_fan_backend = llled_backend
 
     async def run_command(self, command):
         self.commands.append(command)
@@ -34,7 +35,145 @@ class FakeCoordinator:
         return "__FN_NAS_OK__"
 
 
+class FakeLLLEDBackend:
+    def __init__(self, state, percentage_result=True, mode_result=True):
+        self.state = state
+        self.percentage_result = percentage_result
+        self.mode_result = mode_result
+        self.percentage_calls = []
+        self.mode_calls = []
+
+    async def get_status(self):
+        return self.state
+
+    async def set_percentage(self, channel, percentage):
+        self.percentage_calls.append((channel, percentage))
+        return self.percentage_result
+
+    async def set_mode(self, mode):
+        self.mode_calls.append(mode)
+        return self.mode_result
+
+
 class FanManagerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_llled_merges_control_data_into_existing_hwmon_fan_ids(self):
+        llled_state = {
+            "installed": True,
+            "available": True,
+            "supports_control": True,
+            "supports_modes": True,
+            "available_modes": [CONTROL_MODE_AUTO, CONTROL_MODE_MANUAL, CONTROL_MODE_FULL_SPEED],
+            "mode": CONTROL_MODE_AUTO,
+            "fans": [
+                {
+                    "id": "llled_cpu",
+                    "name": "CPU 风扇",
+                    "channel": "cpu",
+                    "backend": "llled",
+                    "rpm": 2070,
+                    "pwm_raw": 128,
+                    "pwm_percent": 50,
+                    "control_mode": CONTROL_MODE_AUTO,
+                    "supports_pwm": True,
+                    "supports_modes": False,
+                    "minimum_pwm_raw": 80,
+                },
+                {
+                    "id": "llled_sys",
+                    "name": "系统风扇",
+                    "channel": "sys",
+                    "backend": "llled",
+                    "rpm": 1053,
+                    "pwm_raw": 96,
+                    "pwm_percent": 38,
+                    "control_mode": CONTROL_MODE_AUTO,
+                    "supports_pwm": True,
+                    "supports_modes": False,
+                    "minimum_pwm_raw": 80,
+                },
+            ],
+        }
+        backend = FakeLLLEDBackend(llled_state)
+        coordinator = FakeCoordinator(
+            [
+                "\n".join(
+                    [
+                        "host\tsys_vendor\tUGREEN",
+                        "host\tproduct_name\tDXP4800 Pro",
+                        "entry\t/sys/class/hwmon/hwmon5\t/sys/devices/platform/it87.656\tit8613\t2\t1800\t\t1\t110\t1\t1\t1\tUGREEN\tDXP4800 Pro",
+                        "entry\t/sys/class/hwmon/hwmon5\t/sys/devices/platform/it87.656\tit8613\t3\t900\t\t1\t90\t1\t1\t1\tUGREEN\tDXP4800 Pro",
+                    ]
+                )
+            ],
+            llled_backend=backend,
+        )
+        manager = FanManager(coordinator)
+
+        fans = await manager.get_fans_info()
+
+        self.assertTrue(fans[0]["id"].startswith("it8613_fan2_"))
+        self.assertTrue(fans[1]["id"].startswith("it8613_fan3_"))
+        self.assertEqual([fan["backend"] for fan in fans], ["llled", "llled"])
+        self.assertEqual([fan["channel"] for fan in fans], ["cpu", "sys"])
+        self.assertEqual([fan["rpm"] for fan in fans], [2070, 1053])
+        self.assertEqual(manager.control_state["mode"], CONTROL_MODE_AUTO)
+        self.assertEqual(manager.last_diagnostics["source"], "llled+hwmon")
+
+    async def test_llled_exposes_fans_without_hwmon_driver(self):
+        llled_state = {
+            "installed": True,
+            "available": True,
+            "supports_control": True,
+            "supports_modes": True,
+            "available_modes": [CONTROL_MODE_AUTO, CONTROL_MODE_MANUAL, CONTROL_MODE_FULL_SPEED],
+            "mode": CONTROL_MODE_MANUAL,
+            "fans": [
+                {
+                    "id": "llled_cpu",
+                    "name": "CPU 风扇",
+                    "channel": "cpu",
+                    "backend": "llled",
+                    "rpm": 2000,
+                    "pwm_raw": 128,
+                    "pwm_percent": 50,
+                    "control_mode": CONTROL_MODE_MANUAL,
+                    "supports_pwm": True,
+                    "supports_modes": False,
+                }
+            ],
+        }
+        coordinator = FakeCoordinator([""], FakeLLLEDBackend(llled_state))
+        manager = FanManager(coordinator)
+
+        fans = await manager.get_fans_info()
+
+        self.assertEqual([fan["id"] for fan in fans], ["llled_cpu"])
+        self.assertEqual(manager.last_diagnostics["source"], "llled")
+        self.assertEqual(len(coordinator.commands), 1)
+
+    async def test_set_percentage_delegates_llled_backed_fan(self):
+        backend = FakeLLLEDBackend({"fans": [], "mode": CONTROL_MODE_MANUAL})
+        manager = FanManager(FakeCoordinator(llled_backend=backend))
+        fan = {
+            "id": "llled_cpu",
+            "name": "CPU 风扇",
+            "backend": "llled",
+            "channel": "cpu",
+            "supports_pwm": True,
+        }
+
+        self.assertTrue(await manager.set_percentage(fan, 45))
+
+        self.assertEqual(backend.percentage_calls, [("cpu", 45)])
+
+    async def test_set_global_mode_delegates_to_llled(self):
+        backend = FakeLLLEDBackend({"fans": [], "mode": CONTROL_MODE_MANUAL})
+        manager = FanManager(FakeCoordinator(llled_backend=backend))
+
+        self.assertTrue(await manager.set_global_mode(CONTROL_MODE_AUTO))
+
+        self.assertEqual(backend.mode_calls, [CONTROL_MODE_AUTO])
+
     async def test_get_fans_info_uses_sensors_output_when_hwmon_has_no_fans(self):
         coordinator = FakeCoordinator(
             [

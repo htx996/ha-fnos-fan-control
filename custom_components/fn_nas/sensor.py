@@ -630,6 +630,7 @@ class FanDiscoverySensor(CoordinatorEntity, SensorEntity):
             "it87模块信息": diagnostics.get("it87_module_info", {}),
             "风扇内核日志": diagnostics.get("fan_kernel_logs", []),
             "风扇控制应用": diagnostics.get("fan_control_app", {}),
+            "LLLED风扇后端": diagnostics.get("llled", {}),
             "诊断工具": diagnostics.get("diagnostic_tools", {}),
             "提示": diagnostics.get("hint", "等待下一次扫描"),
             "错误": diagnostics.get("error"),

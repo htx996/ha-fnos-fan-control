@@ -162,6 +162,8 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
         fan = self._fan_data or {}
         return {
             "风扇ID": self.fan_id,
+            "控制后端": fan.get("backend", "hwmon"),
+            "LLLED通道": fan.get("channel"),
             "转速": fan.get("rpm"),
             "PWM原始值": fan.get("pwm_raw"),
             "控制模式": fan.get("control_mode"),

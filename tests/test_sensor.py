@@ -131,6 +131,13 @@ class StubCoordinator:
                 "port": 9511,
                 "api_status": "",
             },
+            "llled": {
+                "installed": True,
+                "available": True,
+                "mode": "自动",
+                "curve_running": True,
+                "stock_profile": "stock-4800plus",
+            },
             "diagnostic_tools": {"sensors-detect": True},
             "hint": "没有发现风扇",
         }
@@ -248,6 +255,7 @@ class FanDiscoverySensorTests(unittest.TestCase):
             ["it87: Found IT8613E chip at 0xa30"],
         )
         self.assertFalse(entity.extra_state_attributes["风扇控制应用"]["installed"])
+        self.assertEqual(entity.extra_state_attributes["LLLED风扇后端"]["mode"], "自动")
         self.assertEqual(entity.extra_state_attributes["诊断工具"], {"sensors-detect": True})
 
 

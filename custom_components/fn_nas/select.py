@@ -29,7 +29,68 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         if fan.get("supports_modes")
     ]
 
+    fan_control = coordinator.data.get("fan_control", {})
+    if fan_control.get("backend") == "llled" and fan_control.get("supports_modes"):
+        entities.append(LLLEDFanModeSelect(coordinator, config_entry.entry_id))
+
     async_add_entities(entities)
+
+
+class LLLEDFanModeSelect(CoordinatorEntity, SelectEntity):
+    """Global mode selector for the single LLLED temperature controller."""
+
+    def __init__(self, coordinator, entry_id: str):
+        super().__init__(coordinator)
+        self._attr_name = "风扇控制模式"
+        self._attr_unique_id = f"{entry_id}_llled_fan_control_mode"
+        self._attr_icon = "mdi:fan-auto"
+        self._attr_options = coordinator.data["fan_control"].get(
+            "available_modes", FAN_MODE_OPTIONS
+        )
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
+            "name": "飞牛NAS系统监控",
+            "manufacturer": "飞牛",
+            "model": "飞牛NAS",
+        }
+
+    @property
+    def _control_data(self) -> dict:
+        return self.coordinator.data.get("fan_control", {})
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._control_data.get("available", False)
+
+    @property
+    def current_option(self) -> str | None:
+        mode = self._control_data.get("mode")
+        return mode if mode in self.options else None
+
+    async def async_select_option(self, option: str) -> None:
+        if option not in self.options:
+            return
+        success = await self.coordinator.fan_manager.set_global_mode(option)
+        if not success:
+            _LOGGER.warning("设置 LLLED 全局风扇模式失败: %s", option)
+            return
+        self.async_write_ha_state()
+        await self.coordinator.async_request_refresh()
+
+    @property
+    def extra_state_attributes(self):
+        control = self._control_data
+        return {
+            "控制后端": "LLLED",
+            "温控守护进程": "运行中" if control.get("curve_running") else "已停止",
+            "原厂曲线": control.get("stock_profile"),
+            "CPU温度": control.get("cpu_temperature"),
+            "硬盘最高温度": control.get("hdd_temperature"),
+            "NVMe最高温度": control.get("ssd_temperature"),
+            "CPU目标PWM": control.get("desired_cpu_pwm"),
+            "系统风扇目标PWM": control.get("desired_system_pwm"),
+            "错误": control.get("error"),
+        }
 
 
 class FanModeSelect(CoordinatorEntity, SelectEntity):
@@ -89,6 +150,7 @@ class FanModeSelect(CoordinatorEntity, SelectEntity):
         fan = self._fan_data or {}
         return {
             "风扇ID": self.fan_id,
+            "控制后端": fan.get("backend", "hwmon"),
             "PWM enable": fan.get("pwm_enable"),
             "PWM控制支持": fan.get("supports_pwm", False),
             "模式控制支持": fan.get("supports_modes", False),

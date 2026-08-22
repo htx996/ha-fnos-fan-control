@@ -137,6 +137,52 @@ def _install_stubs():
 
 
 class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cleanup_removes_per_fan_mode_selects_replaced_by_llled_global_mode(self):
+        with patch.dict(sys.modules, _install_stubs()):
+            spec = importlib.util.spec_from_file_location(
+                "custom_components.fn_nas",
+                INIT_PATH,
+            )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["custom_components.fn_nas"] = module
+            spec.loader.exec_module(module)
+
+            hass = StubHass()
+            entry = StubEntry()
+            hass.entity_registry.entities = {
+                "select.cpu_mode": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan2_a1b2c3d4_mode",
+                ),
+                "select.system_mode": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan3_a1b2c3d4_mode",
+                ),
+                "sensor.cpu_mode": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_fan_it8613_fan2_a1b2c3d4_mode_sensor",
+                ),
+                "select.global_mode": types.SimpleNamespace(
+                    config_entry_id="entry-1",
+                    platform="fn_nas",
+                    unique_id="entry-1_llled_fan_control_mode",
+                ),
+            }
+
+            module._remove_superseded_llled_mode_entities(
+                hass,
+                entry,
+                {"backend": "llled", "available": True},
+            )
+
+        self.assertEqual(
+            hass.entity_registry.removed,
+            ["select.cpu_mode", "select.system_mode"],
+        )
+
     async def test_cleanup_removes_only_dxp4800pro_it8613_ghost_channels(self):
         with patch.dict(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
