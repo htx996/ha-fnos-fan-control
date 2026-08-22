@@ -62,16 +62,26 @@ sections:
             show_empty: false
             card:
               type: grid
-              columns: 2
+              columns: 3
               square: false
             card_param: cards
             filter:
               include:
                 - integration: fn_nas
-                  domain: switch
+                  domain: button
                   attributes:
                     fn_nas_dashboard_category: control
-                    fn_nas_dashboard_role: power
+                    fn_nas_dashboard_role: power_on
+                  options:
+                    type: custom:button-card
+                    template: fn_nas_image_action
+                    tap_action:
+                      action: more-info
+                - integration: fn_nas
+                  domain: button
+                  attributes:
+                    fn_nas_dashboard_category: control
+                    fn_nas_dashboard_role: power_off
                   options:
                     type: custom:button-card
                     template: fn_nas_image_action
@@ -103,7 +113,7 @@ sections:
               position: absolute;
               top: -60px;
               right: 0;
-              width: 96px;
+              width: 144px;
               z-index: 2;
             }
         grid_options:

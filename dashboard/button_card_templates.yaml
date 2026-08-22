@@ -405,7 +405,8 @@ button_card_templates:
         - width: 24px
         - color: |
             [[[
-              return entity.attributes.fn_nas_dashboard_role === 'power' && entity.state === 'on'
-                ? '#ef6b68'
-                : '#c55b5b';
+              const role = entity.attributes.fn_nas_dashboard_role;
+              if (role === 'power_on') return '#3bc48d';
+              if (role === 'power_off') return '#ef6b68';
+              return '#e7a94b';
             ]]]

@@ -45,7 +45,9 @@ class PowerSwitch(CoordinatorEntity, SwitchEntity):
         self.config_entry = config_entry
         self._attr_name = "电源"
         self._attr_unique_id = "flynas_power"
-        self._dashboard_attributes = dashboard_metadata("control", "power", 10)
+        self._dashboard_attributes = dashboard_metadata(
+            "compatibility", "power_switch", 100
+        )
         self._attr_entity_category = EntityCategory.CONFIG
         self._attr_device_info = {
             "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
@@ -109,7 +111,9 @@ class VMSwitch(CoordinatorEntity, SwitchEntity):
         self.vm_title = vm_title
         self._attr_name = f"{vm_title} 电源"
         self._attr_unique_id = f"flynas_vm_{vm_name}_switch"
-        self._dashboard_attributes = dashboard_metadata("vm", "power", 20)
+        self._dashboard_attributes = dashboard_metadata(
+            "compatibility", "vm_power_switch", 100
+        )
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"vm_{vm_name}")},
             "name": vm_title,
@@ -173,7 +177,7 @@ class DockerContainerSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_name = f"{container_name} 容器"
         self._attr_unique_id = f"docker_{safe_name}_switch"
         self._attr_extra_state_attributes = dashboard_metadata(
-            "docker", "power", 20
+            "compatibility", "docker_power_switch", 100
         )
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"docker_{safe_name}")},
