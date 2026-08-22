@@ -158,15 +158,15 @@ class FanManager:
             )
             supports_pwm = has_pwm and pwm_writable
             supports_manual_mode = pwm_enable_path is not None and mode_writable
-            manual_only = self._is_dxp4800pro_it8613(
+            is_dxp4800pro = self._is_dxp4800pro_it8613(
                 chip_name,
                 system_vendor,
                 product_name,
             )
-            minimum_pwm_raw = (
-                DXP4800PRO_MINIMUM_PWM_RAW
-                if manual_only and supports_pwm
-                else None
+            control_capabilities = self._control_capabilities(
+                supports_pwm,
+                supports_manual_mode,
+                is_dxp4800pro,
             )
 
             fans.append(
@@ -186,11 +186,7 @@ class FanManager:
                     "pwm_enable": pwm_enable,
                     "control_mode": control_mode,
                     "supports_pwm": supports_pwm,
-                    "supports_manual_mode": supports_manual_mode,
-                    "supports_modes": supports_manual_mode and not manual_only,
-                    "manual_only": manual_only,
-                    "minimum_pwm_raw": minimum_pwm_raw,
-                    "minimum_pwm_percent": self._pwm_raw_to_percent(minimum_pwm_raw),
+                    **control_capabilities,
                 }
             )
 
@@ -254,15 +250,15 @@ class FanManager:
 
             supports_pwm = has_pwm and pwm_writable and bool(pwm_path)
             supports_manual_mode = bool(pwm_enable_path) and mode_writable
-            manual_only = self._is_dxp4800pro_it8613(
+            is_dxp4800pro = self._is_dxp4800pro_it8613(
                 chip_name,
                 system_vendor,
                 product_name,
             )
-            minimum_pwm_raw = (
-                DXP4800PRO_MINIMUM_PWM_RAW
-                if manual_only and supports_pwm
-                else None
+            control_capabilities = self._control_capabilities(
+                supports_pwm,
+                supports_manual_mode,
+                is_dxp4800pro,
             )
 
             fans.append(
@@ -282,11 +278,7 @@ class FanManager:
                     "pwm_enable": pwm_enable,
                     "control_mode": self._control_mode_from_enable(pwm_enable),
                     "supports_pwm": supports_pwm,
-                    "supports_manual_mode": supports_manual_mode,
-                    "supports_modes": supports_manual_mode and not manual_only,
-                    "manual_only": manual_only,
-                    "minimum_pwm_raw": minimum_pwm_raw,
-                    "minimum_pwm_percent": self._pwm_raw_to_percent(minimum_pwm_raw),
+                    **control_capabilities,
                 }
             )
 
@@ -327,9 +319,11 @@ class FanManager:
                     "supports_pwm": False,
                     "supports_manual_mode": False,
                     "supports_modes": False,
-                    "manual_only": False,
+                    "supports_auto_mode": False,
+                    "available_modes": [],
                     "minimum_pwm_raw": None,
                     "minimum_pwm_percent": None,
+                    "manual_recovery_percent": None,
                 }
             )
 
@@ -814,7 +808,8 @@ class FanManager:
         if mode not in MODE_TO_PWM_ENABLE:
             return False
 
-        if fan.get("manual_only") and mode != CONTROL_MODE_MANUAL:
+        available_modes = fan.get("available_modes")
+        if available_modes is not None and mode not in available_modes:
             _LOGGER.debug(
                 "风扇 %s 未启用未经验证的硬件模式: %s",
                 fan.get("name", fan.get("id")),
@@ -842,6 +837,18 @@ class FanManager:
 
         if not supports_manual_mode or not fan.get("pwm_enable_path"):
             return False
+
+        recovery_percent = self._to_int(fan.get("manual_recovery_percent"))
+        if (
+            mode == CONTROL_MODE_MANUAL
+            and recovery_percent is not None
+            and (
+                fan.get("control_mode") == CONTROL_MODE_FULL_SPEED
+                or fan.get("pwm_enable") == MODE_TO_PWM_ENABLE[CONTROL_MODE_FULL_SPEED]
+                or (self._to_int(fan.get("pwm_percent")) or 0) >= 100
+            )
+        ):
+            return await self.set_percentage(fan, recovery_percent)
 
         if not await self._write_sysfs(fan["pwm_enable_path"], MODE_TO_PWM_ENABLE[mode]):
             return False
@@ -1403,6 +1410,37 @@ fi
             and (system_vendor or "").strip().upper() == "UGREEN"
             and (product_name or "").strip() == "DXP4800 Pro"
         )
+
+    def _control_capabilities(
+        self,
+        supports_pwm: bool,
+        supports_manual_mode: bool,
+        is_dxp4800pro: bool,
+    ) -> dict:
+        """Describe only mode operations that are safe for the detected board."""
+        available_modes = []
+        if supports_manual_mode:
+            available_modes = [
+                CONTROL_MODE_MANUAL,
+                CONTROL_MODE_FULL_SPEED,
+            ]
+            if not is_dxp4800pro:
+                available_modes.insert(0, CONTROL_MODE_AUTO)
+
+        minimum_pwm_raw = (
+            DXP4800PRO_MINIMUM_PWM_RAW
+            if is_dxp4800pro and supports_pwm
+            else None
+        )
+        return {
+            "supports_manual_mode": supports_manual_mode,
+            "supports_modes": bool(available_modes),
+            "supports_auto_mode": CONTROL_MODE_AUTO in available_modes,
+            "available_modes": available_modes,
+            "minimum_pwm_raw": minimum_pwm_raw,
+            "minimum_pwm_percent": self._pwm_raw_to_percent(minimum_pwm_raw),
+            "manual_recovery_percent": 50 if is_dxp4800pro and supports_pwm else None,
+        }
 
     def _default_fan_name(
         self,

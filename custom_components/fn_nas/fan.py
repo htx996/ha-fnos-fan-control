@@ -5,11 +5,18 @@ from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DATA_UPDATE_COORDINATOR, DEVICE_ID_NAS, DOMAIN
-from .fan_manager import CONTROL_MODE_AUTO, CONTROL_MODE_FULL_SPEED
+from .fan_manager import (
+    CONTROL_MODE_AUTO,
+    CONTROL_MODE_FULL_SPEED,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 PRESET_MODES = [CONTROL_MODE_AUTO, CONTROL_MODE_FULL_SPEED]
+
+
+def _preset_modes_for_fan(fan: dict) -> list[str]:
+    return fan.get("available_modes", PRESET_MODES)
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -56,7 +63,7 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
     def supported_features(self) -> FanEntityFeature:
         fan = self._fan_data or {}
         features = FanEntityFeature.SET_SPEED
-        if fan.get("supports_modes"):
+        if fan.get("supports_modes") and _preset_modes_for_fan(fan):
             features |= FanEntityFeature.PRESET_MODE
         return features
 
@@ -91,7 +98,7 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
     def preset_modes(self) -> list[str] | None:
         fan = self._fan_data
         if fan and fan.get("supports_modes"):
-            return PRESET_MODES
+            return _preset_modes_for_fan(fan)
         return None
 
     @property
@@ -101,7 +108,7 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
             return None
 
         mode = fan.get("control_mode")
-        if mode in PRESET_MODES:
+        if mode in _preset_modes_for_fan(fan):
             return mode
         return None
 
@@ -139,7 +146,7 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         fan = self._fan_data
-        if not fan or preset_mode not in PRESET_MODES:
+        if not fan or preset_mode not in _preset_modes_for_fan(fan):
             raise ValueError(f"Unsupported preset mode: {preset_mode}")
 
         success = await self.coordinator.fan_manager.set_mode(fan, preset_mode)
@@ -160,8 +167,10 @@ class FlynasFanEntity(CoordinatorEntity, FanEntity):
             "控制模式": fan.get("control_mode"),
             "PWM控制支持": fan.get("supports_pwm", False),
             "模式控制支持": fan.get("supports_modes", False),
-            "仅手动控制": fan.get("manual_only", False),
+            "自动模式支持": fan.get("supports_auto_mode", False),
+            "可用模式": fan.get("available_modes", []),
             "最低安全PWM": fan.get("minimum_pwm_percent"),
+            "退出全速PWM": fan.get("manual_recovery_percent"),
             "hwmon路径": fan.get("hwmon_path"),
             "芯片": fan.get("chip"),
         }

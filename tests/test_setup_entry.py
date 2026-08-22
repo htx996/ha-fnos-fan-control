@@ -207,8 +207,6 @@ class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
             hass.entity_registry.removed,
             [
                 "fan.ghost_1",
-                "select.cpu_mode",
-                "select.system_mode",
                 "select.ghost_4",
                 "sensor.ghost_5",
             ],

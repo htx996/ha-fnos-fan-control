@@ -41,7 +41,7 @@ class FanModeSelect(CoordinatorEntity, SelectEntity):
         self._attr_name = f"{fan_info['name']} 模式"
         self._attr_unique_id = f"{entry_id}_fan_{self.fan_id}_mode"
         self._attr_icon = "mdi:tune"
-        self._attr_options = FAN_MODE_OPTIONS
+        self._attr_options = fan_info.get("available_modes", FAN_MODE_OPTIONS)
         self._attr_device_info = {
             "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
             "name": "飞牛NAS系统监控",
@@ -67,13 +67,13 @@ class FanModeSelect(CoordinatorEntity, SelectEntity):
             return None
 
         mode = fan.get("control_mode")
-        if mode in FAN_MODE_OPTIONS:
+        if mode in self.options:
             return mode
         return None
 
     async def async_select_option(self, option: str) -> None:
         fan = self._fan_data
-        if not fan or option not in FAN_MODE_OPTIONS:
+        if not fan or option not in self.options:
             return
 
         success = await self.coordinator.fan_manager.set_mode(fan, option)
@@ -92,6 +92,8 @@ class FanModeSelect(CoordinatorEntity, SelectEntity):
             "PWM enable": fan.get("pwm_enable"),
             "PWM控制支持": fan.get("supports_pwm", False),
             "模式控制支持": fan.get("supports_modes", False),
+            "自动模式支持": fan.get("supports_auto_mode", False),
+            "可用模式": fan.get("available_modes", []),
             "hwmon路径": fan.get("hwmon_path"),
             "芯片": fan.get("chip"),
         }
