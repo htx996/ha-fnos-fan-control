@@ -452,7 +452,9 @@ button_card_templates:
     name: |
       [[[
         const role = entity.attributes.fn_nas_dashboard_role;
-        return role === 'power_on' ? '开机' : '关机';
+        if (role === 'power_on') return '开机';
+        if (role === 'power_off') return '关机';
+        return '重启';
       ]]]
     styles:
       card:
@@ -473,9 +475,10 @@ button_card_templates:
         - width: 19px
         - color: |
             [[[
-              return entity.attributes.fn_nas_dashboard_role === 'power_on'
-                ? '#3bc48d'
-                : '#ef6b68';
+              const role = entity.attributes.fn_nas_dashboard_role;
+              if (role === 'power_on') return '#3bc48d';
+              if (role === 'power_off') return '#ef6b68';
+              return '#e7a94b';
             ]]]
       name:
         - justify-self: start

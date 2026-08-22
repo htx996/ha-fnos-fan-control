@@ -177,7 +177,7 @@ class DashboardVerifications(VerifyCase):
             self.assertIn(f"name: {system} 状态", view)
             self.assertIn(f"name: {system} 开机", view)
             self.assertIn(f"name: {system} 关机", view)
-            self.assertNotIn(f"name: {system} 重启", view)
+            self.assertIn(f"name: {system} 重启", view)
 
     def verify_readme_documents_manual_dashboard_installation(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

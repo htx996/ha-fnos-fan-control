@@ -503,7 +503,7 @@ sections:
                   show_empty: false
                   card:
                     type: grid
-                    columns: 2
+                    columns: 3
                     square: false
                   card_param: cards
                   filter:
@@ -523,6 +523,15 @@ sections:
                         attributes:
                           fn_nas_dashboard_category: vm
                           fn_nas_dashboard_role: power_off
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_action
+                      - integration: fn_nas
+                        domain: button
+                        name: Homeassistant 重启
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: reboot
                         options:
                           type: custom:button-card
                           template: fn_nas_vm_action
@@ -567,7 +576,7 @@ sections:
                   show_empty: false
                   card:
                     type: grid
-                    columns: 2
+                    columns: 3
                     square: false
                   card_param: cards
                   filter:
@@ -587,6 +596,15 @@ sections:
                         attributes:
                           fn_nas_dashboard_category: vm
                           fn_nas_dashboard_role: power_off
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_action
+                      - integration: fn_nas
+                        domain: button
+                        name: iStoreOS 重启
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: reboot
                         options:
                           type: custom:button-card
                           template: fn_nas_vm_action
@@ -630,7 +648,7 @@ sections:
                   show_empty: false
                   card:
                     type: grid
-                    columns: 2
+                    columns: 3
                     square: false
                   card_param: cards
                   filter:
@@ -650,6 +668,15 @@ sections:
                         attributes:
                           fn_nas_dashboard_category: vm
                           fn_nas_dashboard_role: power_off
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_action
+                      - integration: fn_nas
+                        domain: button
+                        name: Windows 10 重启
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: reboot
                         options:
                           type: custom:button-card
                           template: fn_nas_vm_action
