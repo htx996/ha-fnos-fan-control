@@ -130,7 +130,12 @@ class DashboardVerifications(VerifyCase):
 
         self.assertIn("fn_nas_dashboard_role: temperature", view)
         self.assertIn("fn_nas_dashboard_role: rpm", view)
-        self.assertIn("max_columns: 2", view)
+        self.assertIn("max_columns: 3", view)
+        self.assertIn("dense_section_placement: true", view)
+        self.assertEqual(view.count("\n  - type: grid\n"), 6)
+        self.assertEqual(view.count("column_span: 1"), 6)
+        self.assertIn("grid-template-areas: '\"i n\" \"i s\" \"mode pwm\"'", templates)
+        self.assertIn("grid-template-columns: 48px 1fr", templates)
         self.assertNotIn("type: fan-speed", view)
         self.assertNotIn("type: select-options", view)
         self.assertIn("conic-gradient", templates)

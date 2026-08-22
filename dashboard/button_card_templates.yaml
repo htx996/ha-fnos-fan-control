@@ -314,8 +314,8 @@ button_card_templates:
         - border: none
         - box-shadow: none
       grid:
-        - grid-template-areas: '"i n pwm" "i s pwm" "mode mode mode"'
-        - grid-template-columns: 48px 1fr auto
+        - grid-template-areas: '"i n" "i s" "mode pwm"'
+        - grid-template-columns: 48px 1fr
         - grid-template-rows: 22px 32px 28px
         - column-gap: 9px
       img_cell:
@@ -341,7 +341,7 @@ button_card_templates:
       state:
         - justify-self: start
         - color: "#f5f7f8"
-        - font-size: 23px
+        - font-size: 16px
         - font-weight: 650
       custom_fields:
         mode:
