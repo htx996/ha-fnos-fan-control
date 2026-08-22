@@ -9,14 +9,10 @@ class VMManager:
         self.coordinator = coordinator
         self.vms = []
         self.logger = _LOGGER.getChild("vm_manager")
-        # 根据Home Assistant的日志级别动态设置
-        self.logger.setLevel(logging.DEBUG if _LOGGER.isEnabledFor(logging.DEBUG) else logging.INFO)
-        self.debug_enabled = _LOGGER.isEnabledFor(logging.DEBUG)
 
     def _debug_log(self, message: str):
-        """只在调试模式下输出详细日志"""
-        if self.debug_enabled:
-            self.logger.debug(message)
+        """输出由 Home Assistant 日志级别控制的详细日志。"""
+        self.logger.debug(message)
 
     def _info_log(self, message: str):
         """重要信息日志"""

@@ -39,10 +39,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 # 保存用户输入
                 self.ssh_config = user_input
                 
-                # 测试SSH连接
-                test_result = await self.test_connection(user_input)
-                if test_result != "success":
-                    errors["base"] = test_result
+                # 验证SSH连接
+                verify_result = await self.verify_connection(user_input)
+                if verify_result != "success":
+                    errors["base"] = verify_result
                 else:
                     # 检查是否需要root密码
                     conn = await self.create_ssh_connection(user_input)
@@ -50,7 +50,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         # 是root用户，直接使用
                         self.ssh_config[CONF_ROOT_PASSWORD] = self.ssh_config[CONF_PASSWORD]
                         return await self.async_step_select_mac()
-                    elif await self.test_sudo_with_password(conn, user_input[CONF_PASSWORD]):
+                    elif await self.verify_sudo_with_password(conn, user_input[CONF_PASSWORD]):
                         # 非root用户但可使用密码sudo
                         self.ssh_config[CONF_ROOT_PASSWORD] = self.ssh_config[CONF_PASSWORD]
                         return await self.async_step_select_mac()
@@ -58,7 +58,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         # 无法获取root权限
                         errors["base"] = "sudo_permission_required"
             except Exception as e:
-                _LOGGER.error("Connection test failed: %s", str(e), exc_info=True)
+                _LOGGER.error("Connection verification failed: %s", str(e), exc_info=True)
                 errors["base"] = "unknown_error"
         
         schema = vol.Schema({
@@ -159,7 +159,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except Exception:
             return False
             
-    async def test_sudo_with_password(self, conn, password):
+    async def verify_sudo_with_password(self, conn, password):
         try:
             result = await conn.run(
                 f"echo '{password}' | sudo -S whoami",
@@ -170,12 +170,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         except Exception:
             return False
     
-    async def test_connection(self, config):
+    async def verify_connection(self, config):
         conn = None
         try:
             conn = await self.create_ssh_connection(config)
-            result = await conn.run("echo 'connection_test'", timeout=5)
-            if result.exit_status == 0 and "connection_test" in result.stdout:
+            result = await conn.run("echo 'connection_verify'", timeout=5)
+            if result.exit_status == 0 and "connection_verify" in result.stdout:
                 return "success"
             return "connection_failed"
         except asyncssh.Error as e:

@@ -68,9 +68,6 @@ class FlynasCoordinator(DataUpdateCoordinator):
         self._last_command_time = 0
         self._command_count = 0
     
-        # 添加日志方法
-        self.debug_enabled = _LOGGER.isEnabledFor(logging.DEBUG)
-    
     def get_default_data(self):
         """返回默认的数据结构"""
         return {
@@ -90,9 +87,8 @@ class FlynasCoordinator(DataUpdateCoordinator):
         }
     
     def _debug_log(self, message: str):
-        """只在调试模式下输出详细日志"""
-        if self.debug_enabled:
-            _LOGGER.debug(message)
+        """输出由 Home Assistant 日志级别控制的详细日志。"""
+        _LOGGER.debug(message)
 
     def _info_log(self, message: str):
         """重要信息日志"""
@@ -113,8 +109,8 @@ class FlynasCoordinator(DataUpdateCoordinator):
             for i, (ssh, in_use) in enumerate(self.ssh_pool):
                 if not in_use:
                     try:
-                        # 测试连接是否活跃
-                        await asyncio.wait_for(ssh.run("echo 'test'", timeout=1), timeout=2)
+                        # 验证连接是否活跃
+                        await asyncio.wait_for(ssh.run("echo 'verify'", timeout=1), timeout=2)
                         self.ssh_pool[i] = (ssh, True)  # 标记为使用中
                         self._debug_log(f"复用连接池中的连接 {i}")
                         return ssh, i
@@ -157,7 +153,7 @@ class FlynasCoordinator(DataUpdateCoordinator):
                 for i, (ssh, in_use) in enumerate(self.ssh_pool):
                     if not in_use:
                         try:
-                            await asyncio.wait_for(ssh.run("echo 'test'", timeout=1), timeout=2)
+                            await asyncio.wait_for(ssh.run("echo 'verify'", timeout=1), timeout=2)
                             self.ssh_pool[i] = (ssh, True)
                             self._debug_log(f"等待后获得连接 {i}")
                             return ssh, i

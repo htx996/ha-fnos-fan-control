@@ -1,9 +1,9 @@
 import importlib.util
 import sys
 import types
-import unittest
+from verification.support import VerifyCase
 from pathlib import Path
-from unittest.mock import patch
+from verification.support import patch_modules
 
 
 INIT_PATH = (
@@ -142,9 +142,9 @@ def _install_stubs():
     }
 
 
-class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
-    async def test_fan_registry_migration_keeps_oldest_entities_and_removes_duplicates(self):
-        with patch.dict(sys.modules, _install_stubs()):
+class SetupEntryVerifications(VerifyCase):
+    async def verify_fan_registry_migration_keeps_oldest_entities_and_removes_duplicates(self):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas",
                 INIT_PATH,
@@ -208,8 +208,8 @@ class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_fan_registry_migration_preserves_old_entity_id_when_no_duplicate_exists(self):
-        with patch.dict(sys.modules, _install_stubs()):
+    async def verify_fan_registry_migration_preserves_old_entity_id_when_no_duplicate_exists(self):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas",
                 INIT_PATH,
@@ -240,8 +240,8 @@ class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
             [("fan.system_fan_control", "entry-1_fan_channel_sys")],
         )
 
-    async def test_cleanup_removes_per_fan_mode_selects_replaced_by_llled_global_mode(self):
-        with patch.dict(sys.modules, _install_stubs()):
+    async def verify_cleanup_removes_per_fan_mode_selects_replaced_by_llled_global_mode(self):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas",
                 INIT_PATH,
@@ -286,8 +286,8 @@ class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
             ["select.cpu_mode", "select.system_mode"],
         )
 
-    async def test_cleanup_removes_only_dxp4800pro_it8613_ghost_channels(self):
-        with patch.dict(sys.modules, _install_stubs()):
+    async def verify_cleanup_removes_only_dxp4800pro_it8613_ghost_channels(self):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas",
                 INIT_PATH,
@@ -361,8 +361,8 @@ class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
             ],
         )
 
-    async def test_setup_entry_forwards_platforms_before_returning(self):
-        with patch.dict(sys.modules, _install_stubs()):
+    async def verify_setup_entry_forwards_platforms_before_returning(self):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas",
                 INIT_PATH,
@@ -382,7 +382,3 @@ class SetupEntryTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertFalse(hass.created_tasks)
         self.assertIsNotNone(hass.data["fn_nas"][entry.entry_id]["ups_coordinator"])
-
-
-if __name__ == "__main__":
-    unittest.main()

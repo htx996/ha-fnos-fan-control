@@ -1,10 +1,10 @@
 import importlib.util
 import sys
 import types
-import unittest
+from verification.support import VerifyCase
 from enum import IntFlag
 from pathlib import Path
-from unittest.mock import patch
+from verification.support import patch_modules
 
 
 FAN_PATH = (
@@ -67,9 +67,9 @@ def _install_stubs():
     }
 
 
-class FanEntityIdentityTests(unittest.TestCase):
-    def test_control_entity_follows_channel_when_hwmon_id_disappears(self):
-        with patch.dict(sys.modules, _install_stubs()):
+class FanEntityIdentityVerifications(VerifyCase):
+    def verify_control_entity_follows_channel_when_hwmon_id_disappears(self):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas.fan",
                 FAN_PATH,
@@ -108,7 +108,3 @@ class FanEntityIdentityTests(unittest.TestCase):
         self.assertEqual(entity._attr_unique_id, "entry-1_fan_channel_sys")
         self.assertEqual(entity.percentage, 50)
         self.assertEqual(entity.extra_state_attributes["控制后端"], "llled")
-
-
-if __name__ == "__main__":
-    unittest.main()

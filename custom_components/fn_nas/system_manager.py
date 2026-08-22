@@ -1,6 +1,5 @@
 import logging
 import asyncio
-import os
 from datetime import datetime
 
 _LOGGER = logging.getLogger(__name__)
@@ -9,10 +8,6 @@ class SystemManager:
     def __init__(self, coordinator):
         self.coordinator = coordinator
         self.logger = _LOGGER.getChild("system_manager")
-        # 根据Home Assistant的日志级别动态设置
-        self.logger.setLevel(logging.DEBUG if _LOGGER.isEnabledFor(logging.DEBUG) else logging.INFO)
-        self.debug_enabled = _LOGGER.isEnabledFor(logging.DEBUG)  # 基于HA调试模式
-        self.sensors_debug_path = "/config/fn_nas_debug"
         
         # 温度传感器缓存
         self.cpu_temp_cache = {
@@ -28,9 +23,8 @@ class SystemManager:
         }
 
     def _debug_log(self, message: str):
-        """只在调试模式下输出详细日志"""
-        if self.debug_enabled:
-            self.logger.debug(message)
+        """输出由 Home Assistant 日志级别控制的详细日志。"""
+        self.logger.debug(message)
 
     def _info_log(self, message: str):
         """重要信息日志"""
@@ -93,8 +87,7 @@ class SystemManager:
             self._debug_log(f"执行sensors命令获取温度: {command}")
             
             sensors_output = await self.coordinator.run_command(command)
-            if self.debug_enabled:
-                self._debug_log(f"sensors命令输出长度: {len(sensors_output) if sensors_output else 0}")
+            self._debug_log(f"sensors命令输出长度: {len(sensors_output) if sensors_output else 0}")
             
             if not sensors_output:
                 self._warning_log("sensors命令无输出")
@@ -149,8 +142,7 @@ class SystemManager:
             
             for i, line in enumerate(lines):
                 line_lower = line.lower().strip()
-                if self.debug_enabled:
-                    self._debug_log(f"第{i+1}行: {line_lower}")
+                self._debug_log(f"第{i+1}行: {line_lower}")
                 
                 # AMD CPU温度关键词
                 if any(keyword in line_lower for keyword in [

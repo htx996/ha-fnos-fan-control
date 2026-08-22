@@ -9,7 +9,6 @@ class DiskManager:
     def __init__(self, coordinator):
         self.coordinator = coordinator
         self.logger = _LOGGER.getChild("disk_manager")
-        self.logger.setLevel(logging.DEBUG)
         self.disk_status_cache = {}  # 缓存磁盘状态 {"sda": "活动中", ...}
         self.disk_full_info_cache = {}  # 缓存磁盘完整信息
         self.first_run = True  # 首次运行标志
@@ -367,7 +366,7 @@ class DiskManager:
         raw_health = self.extract_value(
             health_output,
             [
-                r"SMART overall-health self-assessment test result:\s*(.+)",
+                r"SMART overall-health self-assessment \S+ result:\s*(.+)",
                 r"SMART Health Status:\s*(.+)"
             ],
             default="UNKNOWN"

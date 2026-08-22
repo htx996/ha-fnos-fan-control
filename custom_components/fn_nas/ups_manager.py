@@ -1,7 +1,5 @@
 import logging
 import re
-import json
-import os
 from datetime import datetime
 from .const import DOMAIN, UPS_INFO
 
@@ -11,15 +9,10 @@ class UPSManager:
     def __init__(self, coordinator):
         self.coordinator = coordinator
         self.logger = _LOGGER.getChild("ups_manager")
-        # 根据Home Assistant的日志级别动态设置
-        self.logger.setLevel(logging.DEBUG if _LOGGER.isEnabledFor(logging.DEBUG) else logging.INFO)
-        self.debug_enabled = _LOGGER.isEnabledFor(logging.DEBUG)  # 基于HA调试模式
-        self.ups_debug_path = "/config/fn_nas_ups_debug"
 
     def _debug_log(self, message: str):
-        """只在调试模式下输出详细日志"""
-        if self.debug_enabled:
-            self.logger.debug(message)
+        """输出由 Home Assistant 日志级别控制的详细日志。"""
+        self.logger.debug(message)
 
     def _info_log(self, message: str):
         """重要信息日志"""
@@ -62,9 +55,6 @@ class UPSManager:
                     # 获取详细的UPS信息
                     ups_details = await self.coordinator.run_command(f"upsc {ups_name}")
                     self._debug_log(f"UPS详细信息: {ups_details}")
-                    
-                    # 保存UPS数据以便调试
-                    self.save_ups_data_for_debug(ups_details)
                     
                     # 解析UPS信息
                     return self.parse_nut_ups_info(ups_details)
@@ -252,25 +242,3 @@ class UPSManager:
                 return value
         
         return status_str if status_str else "未知"
-    
-    def save_ups_data_for_debug(self, ups_output: str):
-        """保存UPS数据以便调试"""
-        if not self.debug_enabled:
-            return
-            
-        try:
-            # 创建调试目录
-            if not os.path.exists(self.ups_debug_path):
-                os.makedirs(self.ups_debug_path)
-            
-            # 生成文件名
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = os.path.join(self.ups_debug_path, f"ups_{timestamp}.log")
-            
-            # 写入文件
-            with open(filename, "w") as f:
-                f.write(ups_output)
-            
-            self._info_log(f"保存UPS数据到 {filename} 用于调试")
-        except Exception as e:
-            self._error_log(f"保存UPS数据失败: {str(e)}")

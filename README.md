@@ -36,6 +36,39 @@
 
 ### 现已支持非root用户访问，无需配置ssh，需要开启飞牛SSH服务
 
+## 🌀 风扇接入方式
+
+本集成支持以下两种飞牛 NAS 端方案。两者都由本集成通过现有 SSH 层读取，不会由 Home Assistant 自动安装驱动、应用或修改系统启动配置。
+
+### 方式一：`ite-it87` 驱动
+
+适合只需要标准 Linux hwmon 监控和直接 PWM 控制的用户。
+
+1. 在飞牛应用中心安装与当前 fnOS 内核版本匹配的 `ite-it87` 驱动并启用。
+2. 确认 `lsmod | grep '^it87'` 能看到模块。
+3. 重启或重新加载“飞牛NAS”集成。
+
+驱动会把 ITE Super I/O 芯片的温度、风扇转速和 PWM 通道暴露到 `/sys/class/hwmon`。本集成会自动发现实际 `hwmonX`，无需手工配置路径。上游 [frankcrawford/it87](https://github.com/frankcrawford/it87) 明确支持 IT8613E 的监控与控制。
+
+在 DXP4800 Pro 上，本集成只使用已接线的 CPU 风扇和系统风扇通道。直接 hwmon 后端提供手动调速与全速，不把未经确认的 `pwm*_enable=2` 当作可靠自动温控。
+
+### 方式二：[`LLLED_FPK`](https://github.com/BearHero520/LLLED_FPK)
+
+适合需要自动温控、手动调速和全速模式的用户。
+
+1. 从 LLLED_FPK Releases 下载 FPK，在飞牛应用中心手动安装。
+2. 打开“绿联 LED 灯控”的 BIOS 与风扇页面，确认当前机型已识别风扇。
+3. 完成应用要求的风扇写入风险确认。
+4. 重启或重新加载“飞牛NAS”集成。
+
+本集成检测到可用 LLLED 后会优先使用其本地接口，并创建全局“风扇控制模式”实体：自动模式由 LLLED 温控守护进程同时参考 CPU、硬盘和 NVMe 温度，手动模式允许通过 fan 实体设置百分比，全速模式写入最大 PWM。
+
+LLLED_FPK 官方说明要求 fnOS 0.9.27 或更高版本、x86 平台和 root 权限；不同机型提供的风扇能力不同。其当前列表把 DXP4800 Pro 标为“待验证”，因此必须以应用 BIOS 与风扇页面的实际识别结果为准。
+
+### 两种方式同时安装
+
+`ite-it87` 只负责暴露硬件通道，LLLED 负责温控策略，两者可以同时安装。本集成检测到 LLLED 可用时优先由 LLLED 执行控制，同时利用 hwmon 数据并保持实体身份稳定。不要再并行运行其他风扇守护程序，也不要同时在 LLLED 页面和 Home Assistant 中反复写入固定转速。
+
 ## 💻 Home Assistant安装
 
 1.  进入**HACS商店**​
@@ -73,9 +106,10 @@ https://github.com/htx996/ha-fnos-fan-control
     *   “全速”停止 LLLED 温控守护进程，再将 CPU 和系统风扇写为 PWM 255
 *   LLLED 的自动模式是一个同时管理 CPU、硬盘和 NVMe 温度的全局软件温控器，不是 Linux `pwm*_enable=2`；因此不会给 CPU 和系统风扇分别创建相互冲突的模式下拉框
 *   使用 LLLED 控制前，必须先在 LLLED 界面完成风扇写入风险确认，然后重新加载“飞牛NAS”集成。集成只在 LLLED 报告“已确认”后创建控制实体，并在每次写入时携带 LLLED 要求的确认令牌，不会替用户自动确认风险
-*   已安装 `ite-it87` 时会保留原有 hwmon 实体唯一 ID，但实际写入交给 LLLED；未安装该驱动时，如果 LLLED 的受保护直控后端可用，仍可通过 LLLED 创建风扇实体
+*   已安装 `ite-it87` 时可同时使用 hwmon 监控数据；LLLED 可用时实际控制优先交给 LLLED。未安装该驱动时，如果 LLLED 的受保护直控后端可用，仍可创建风扇实体
 *   `1.3.22` 修复 LLLED 与 hwmon 读取状态短暂切换时，风扇 ID 变化导致控制实体变灰、RPM/PWM/控制状态显示“未知”的问题；现有实体唯一 ID 保持不变
 *   `1.3.23` 将 CPU、系统风扇迁移到稳定的物理通道标识；升级重启时优先保留最早创建实体的 `entity_id`，并自动移除同一风扇由旧 hwmon/LLLED 标识产生的“不可用”重复实体
+*   `1.3.24` 使用 `verify` 统一仓库验证命名，移除文件型调试输出和强制 DEBUG，并补充 `ite-it87`、LLLED_FPK 两种风扇接入方案
 *   不要同时在 LLLED 页面和 Home Assistant 中反复设置固定转速。两者使用同一 LLLED 控制器，最后一次操作会决定当前模式和 PWM
 *   本仓库不包含或复制 LLLED 的程序、二进制文件或源代码，只通过现有 SSH 层调用用户已经安装的 LLLED 接口
 *   从旧版本升级后如果风扇仍处于全速，请在模式下拉框选择“手动”，集成会自动恢复到 50%；也可以打开对应 fan 实体直接设置 40%-50%
@@ -88,7 +122,7 @@ https://github.com/htx996/ha-fnos-fan-control
 
 ### 🔄 问题排查
 
-# 测试SSH连接
+# 验证SSH连接
 ```shell
 ssh root@<NAS_IP> -p <端口>
 ```
@@ -101,6 +135,13 @@ ssh root@<NAS_IP> -p <端口>
 * * *
 
 > 📌 建议使用固定IP分配给NAS设备以确保连接稳定
+
+## 仓库验证
+
+```shell
+python3 -m verification.run
+```
+
 # 免责声明
 
 1. **非官方性质**  

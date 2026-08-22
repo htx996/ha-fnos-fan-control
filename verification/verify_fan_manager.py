@@ -1,6 +1,6 @@
 import importlib.util
 from pathlib import Path
-import unittest
+from verification.support import VerifyCase
 
 
 FAN_MANAGER_PATH = (
@@ -55,8 +55,8 @@ class FakeLLLEDBackend:
         return self.mode_result
 
 
-class FanManagerTests(unittest.IsolatedAsyncioTestCase):
-    async def test_llled_merges_control_data_into_existing_hwmon_fan_ids(self):
+class FanManagerVerifications(VerifyCase):
+    async def verify_llled_merges_control_data_into_existing_hwmon_fan_ids(self):
         llled_state = {
             "installed": True,
             "available": True,
@@ -119,7 +119,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(manager.control_state["mode"], CONTROL_MODE_AUTO)
         self.assertEqual(manager.last_diagnostics["source"], "llled+hwmon")
 
-    async def test_llled_exposes_fans_without_hwmon_driver(self):
+    async def verify_llled_exposes_fans_without_hwmon_driver(self):
         llled_state = {
             "installed": True,
             "available": True,
@@ -151,7 +151,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(manager.last_diagnostics["source"], "llled")
         self.assertEqual(len(coordinator.commands), 1)
 
-    async def test_set_percentage_delegates_llled_backed_fan(self):
+    async def verify_set_percentage_delegates_llled_backed_fan(self):
         backend = FakeLLLEDBackend({"fans": [], "mode": CONTROL_MODE_MANUAL})
         manager = FanManager(FakeCoordinator(llled_backend=backend))
         fan = {
@@ -166,7 +166,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(backend.percentage_calls, [("cpu", 45)])
 
-    async def test_set_global_mode_delegates_to_llled(self):
+    async def verify_set_global_mode_delegates_to_llled(self):
         backend = FakeLLLEDBackend({"fans": [], "mode": CONTROL_MODE_MANUAL})
         manager = FanManager(FakeCoordinator(llled_backend=backend))
 
@@ -174,7 +174,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(backend.mode_calls, [CONTROL_MODE_AUTO])
 
-    async def test_get_fans_info_uses_sensors_output_when_hwmon_has_no_fans(self):
+    async def verify_get_fans_info_uses_sensors_output_when_hwmon_has_no_fans(self):
         coordinator = FakeCoordinator(
             [
                 "",
@@ -199,7 +199,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(fans[0]["supports_modes"])
         self.assertIn("sensors", coordinator.commands[1])
 
-    async def test_get_fans_info_records_diagnostics_when_no_fans_are_found(self):
+    async def verify_get_fans_info_records_diagnostics_when_no_fans_are_found(self):
         coordinator = FakeCoordinator(
             [
                 "",
@@ -229,7 +229,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertIn("sensors -u", coordinator.commands[2])
 
-    async def test_get_fans_info_uses_direct_sysfs_fan_input_when_standard_sources_are_empty(self):
+    async def verify_get_fans_info_uses_direct_sysfs_fan_input_when_standard_sources_are_empty(self):
         coordinator = FakeCoordinator(
             [
                 "",
@@ -255,7 +255,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(fans[0]["fan_input_path"], "/sys/devices/platform/fn_ec/fan1_input")
         self.assertEqual(manager.last_diagnostics["source"], "sysfs")
 
-    def test_parse_sysfs_candidates_includes_raw_fan_and_cooling_paths(self):
+    def verify_parse_sysfs_candidates_includes_raw_fan_and_cooling_paths(self):
         output = "\n".join(
             [
                 "candidate\t/sys/devices/platform/fn_ec/fan1_input\t1380",
@@ -280,7 +280,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(diagnostics["cooling_devices"][0]["type"], "Fan")
 
-    def test_diagnostics_expose_host_driver_and_fan_service_inventory(self):
+    def verify_diagnostics_expose_host_driver_and_fan_service_inventory(self):
         inventory = "\n".join(
             [
                 "host\tkernel\t6.12.18-trim   ",
@@ -496,7 +496,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(diagnostics["diagnostic_tools"], {"sensors-detect": True})
 
-    def test_parse_sensors_output_accepts_sensors_u_fan_input_lines(self):
+    def verify_parse_sensors_output_accepts_sensors_u_fan_input_lines(self):
         output = "\n".join(
             [
                 "nct6798-isa-0290",
@@ -515,7 +515,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(fans[0]["rpm"], 1180)
         self.assertEqual(fans[1]["rpm"], 1230)
 
-    def test_parse_hwmon_snapshot_discovers_rpm_pwm_and_mode_without_hardcoded_hwmon(self):
+    def verify_parse_hwmon_snapshot_discovers_rpm_pwm_and_mode_without_hardcoded_hwmon(self):
         snapshot = "\n".join(
             [
                 "entry\t/sys/class/hwmon/hwmon2\t/sys/devices/platform/nct6775.656\tnct6798\t1\t1180\tCPU Fan\t1\t128\t2\t1\t1",
@@ -537,7 +537,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(fans[1]["control_mode"], CONTROL_MODE_MANUAL)
 
-    def test_parse_hwmon_snapshot_keeps_monitor_only_fans_when_pwm_is_missing_or_read_only(self):
+    def verify_parse_hwmon_snapshot_keeps_monitor_only_fans_when_pwm_is_missing_or_read_only(self):
         snapshot = "\n".join(
             [
                 "entry\t/sys/class/hwmon/hwmon0\t/sys/devices/pci0000:00/coretemp.0\tcoretemp\t1\t1500\tCPU Fan\t0\t\t\t0\t0",
@@ -556,7 +556,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(fans[1]["supports_pwm"])
         self.assertTrue(fans[1]["supports_modes"])
 
-    def test_dxp4800pro_it8613_only_exposes_connected_cpu_and_system_channels(self):
+    def verify_dxp4800pro_it8613_only_exposes_connected_cpu_and_system_channels(self):
         snapshot = "\n".join(
             [
                 "entry\t/sys/class/hwmon/hwmon5\t/sys/devices/platform/it87.656\tit8613\t1\t0\t\t1\t128\t1\t1\t1\tUGREEN\tDXP4800 Pro",
@@ -586,7 +586,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(fan["minimum_pwm_percent"] == 31 for fan in fans))
         self.assertTrue(all(fan["manual_recovery_percent"] == 50 for fan in fans))
 
-    async def test_dxp4800pro_clamps_low_pwm_and_forces_verified_manual_mode(self):
+    async def verify_dxp4800pro_clamps_low_pwm_and_forces_verified_manual_mode(self):
         coordinator = FakeCoordinator()
         manager = FanManager(coordinator)
         fan = {
@@ -613,7 +613,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(fan["pwm_percent"], 31)
         self.assertEqual(fan["control_mode"], CONTROL_MODE_MANUAL)
 
-    async def test_dxp4800pro_rejects_unverified_hardware_auto_mode(self):
+    async def verify_dxp4800pro_rejects_unverified_hardware_auto_mode(self):
         coordinator = FakeCoordinator()
         manager = FanManager(coordinator)
         fan = {
@@ -628,7 +628,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(await manager.set_mode(fan, CONTROL_MODE_AUTO))
         self.assertEqual(coordinator.commands, [])
 
-    async def test_dxp4800pro_manual_mode_recovers_full_speed_to_50_percent(self):
+    async def verify_dxp4800pro_manual_mode_recovers_full_speed_to_50_percent(self):
         coordinator = FakeCoordinator()
         manager = FanManager(coordinator)
         fan = {
@@ -658,7 +658,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(fan["control_mode"], CONTROL_MODE_MANUAL)
         self.assertEqual(fan["pwm_percent"], 50)
 
-    async def test_manual_pwm_transaction_records_delayed_readback_failure(self):
+    async def verify_manual_pwm_transaction_records_delayed_readback_failure(self):
         coordinator = FakeCoordinator(
             ["__FN_NAS_ERROR__ mode=0 pwm=255"]
         )
@@ -686,7 +686,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-    def test_sysfs_write_command_reads_back_the_requested_value(self):
+    def verify_sysfs_write_command_reads_back_the_requested_value(self):
         command = FanManager(FakeCoordinator())._build_write_command(
             "/sys/class/hwmon/hwmon5/pwm3_enable",
             1,
@@ -695,7 +695,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("actual=$(cat", command)
         self.assertIn('[ "$actual" = "$expected" ]', command)
 
-    async def test_set_percentage_switches_to_manual_mode_and_writes_scaled_pwm_value(self):
+    async def verify_set_percentage_switches_to_manual_mode_and_writes_scaled_pwm_value(self):
         coordinator = FakeCoordinator()
         manager = FanManager(coordinator)
         fan = {
@@ -713,7 +713,7 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("pwm1", coordinator.commands[0])
         self.assertIn("'128'", coordinator.commands[0])
 
-    async def test_set_full_speed_falls_back_to_manual_100_percent_if_pwm_enable_zero_fails(self):
+    async def verify_set_full_speed_falls_back_to_manual_100_percent_if_pwm_enable_zero_fails(self):
         def response(command):
             if "pwm1_enable" in command and "'0'" in command:
                 return "__FN_NAS_ERROR__"
@@ -737,7 +737,3 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("'1'", coordinator.commands[1])
         self.assertIn("pwm1", coordinator.commands[1])
         self.assertIn("'255'", coordinator.commands[1])
-
-
-if __name__ == "__main__":
-    unittest.main()

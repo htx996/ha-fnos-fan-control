@@ -1,9 +1,9 @@
 import importlib.util
 import sys
 import types
-import unittest
+from verification.support import VerifyCase
 from pathlib import Path
-from unittest.mock import patch
+from verification.support import patch_modules
 
 
 SENSOR_PATH = (
@@ -195,9 +195,9 @@ def _install_stubs():
     }
 
 
-class FanDiscoverySensorTests(unittest.TestCase):
-    def test_fan_sensor_follows_llled_channel_when_backend_id_changes(self):
-        with patch.dict(sys.modules, _install_stubs()):
+class FanDiscoverySensorVerifications(VerifyCase):
+    def verify_fan_sensor_follows_llled_channel_when_backend_id_changes(self):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas.sensor",
                 SENSOR_PATH,
@@ -232,8 +232,8 @@ class FanDiscoverySensorTests(unittest.TestCase):
 
         self.assertEqual(entity.native_value, 2070)
 
-    def test_fan_sensor_follows_channel_when_llled_id_becomes_hwmon_id(self):
-        with patch.dict(sys.modules, _install_stubs()):
+    def verify_fan_sensor_follows_channel_when_llled_id_becomes_hwmon_id(self):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas.sensor",
                 SENSOR_PATH,
@@ -269,8 +269,8 @@ class FanDiscoverySensorTests(unittest.TestCase):
 
         self.assertEqual(entity.native_value, 50)
 
-    def test_fan_discovery_sensor_exposes_diagnostics_attributes(self):
-        with patch.dict(sys.modules, _install_stubs()):
+    def verify_fan_discovery_sensor_exposes_diagnostics_attributes(self):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas.sensor",
                 SENSOR_PATH,
@@ -330,7 +330,3 @@ class FanDiscoverySensorTests(unittest.TestCase):
         self.assertFalse(entity.extra_state_attributes["风扇控制应用"]["installed"])
         self.assertEqual(entity.extra_state_attributes["LLLED风扇后端"]["mode"], "自动")
         self.assertEqual(entity.extra_state_attributes["诊断工具"], {"sensors-detect": True})
-
-
-if __name__ == "__main__":
-    unittest.main()

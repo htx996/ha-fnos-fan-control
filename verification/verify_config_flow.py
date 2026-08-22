@@ -1,9 +1,9 @@
 import importlib.util
 import sys
 import types
-import unittest
+from verification.support import VerifyCase
 from pathlib import Path
-from unittest.mock import patch
+from verification.support import patch_modules
 
 
 CONFIG_FLOW_PATH = (
@@ -95,14 +95,14 @@ def _install_stubs():
     }
 
 
-class ConfigFlowTests(unittest.TestCase):
-    def test_options_flow_does_not_assign_read_only_config_entry_property(self):
+class ConfigFlowVerifications(VerifyCase):
+    def verify_options_flow_does_not_assign_read_only_config_entry_property(self):
         entry = types.SimpleNamespace(options={}, data={}, title="192.168.2.86")
         module = types.ModuleType("custom_components.fn_nas.config_flow")
         module.__file__ = str(CONFIG_FLOW_PATH)
         module.__package__ = "custom_components.fn_nas"
 
-        with patch.dict(sys.modules, _install_stubs()):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas.config_flow",
                 CONFIG_FLOW_PATH,
@@ -114,7 +114,3 @@ class ConfigFlowTests(unittest.TestCase):
             flow = config_flow.ConfigFlow.async_get_options_flow(entry)
 
         self.assertIs(flow._config_entry, entry)
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -1,9 +1,9 @@
 import importlib.util
 import sys
 import types
-import unittest
+from verification.support import VerifyCase
 from pathlib import Path
-from unittest.mock import patch
+from verification.support import patch_modules
 
 
 SELECT_PATH = (
@@ -98,9 +98,9 @@ def _install_stubs():
     }
 
 
-class FanModeSelectTests(unittest.IsolatedAsyncioTestCase):
-    async def test_setup_adds_one_global_llled_mode_entity(self):
-        with patch.dict(sys.modules, _install_stubs()):
+class FanModeSelectVerifications(VerifyCase):
+    async def verify_setup_adds_one_global_llled_mode_entity(self):
+        with patch_modules(sys.modules, _install_stubs()):
             spec = importlib.util.spec_from_file_location(
                 "custom_components.fn_nas.select", SELECT_PATH
             )
@@ -127,7 +127,3 @@ class FanModeSelectTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(coordinator.fan_manager.mode_calls, ["自动"])
         self.assertEqual(coordinator.refresh_count, 1)
-
-
-if __name__ == "__main__":
-    unittest.main()

@@ -8,7 +8,6 @@ class DockerManager:
     def __init__(self, coordinator):
         self.coordinator = coordinator
         self.logger = _LOGGER.getChild("docker_manager")
-        self.logger.setLevel(logging.DEBUG)
         
     async def get_containers(self) -> List[Dict[str, str]]:
         """获取Docker容器列表及其状态"""
