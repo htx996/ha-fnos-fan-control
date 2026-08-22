@@ -442,19 +442,13 @@ button_card_templates:
         - font-weight: 600
 
   fn_nas_vm_action:
-    show_icon: true
+    show_icon: false
     show_name: true
     show_state: false
     tap_action:
-      action: call-service
-      service: button.press
-      service_data:
-        entity_id: |
-          [[[
-            return entity.entity_id;
-          ]]]
-    hold_action:
       action: more-info
+    hold_action:
+      action: none
     name: |
       [[[
         const role = entity.attributes.fn_nas_dashboard_role;
@@ -462,6 +456,59 @@ button_card_templates:
         if (role === 'power_off') return '关机';
         return '重启';
       ]]]
+    custom_fields:
+      action:
+        card:
+          type: custom:button-card
+          entity: |
+            [[[
+              return entity.entity_id;
+            ]]]
+          show_icon: true
+          show_name: false
+          show_state: false
+          icon: |
+            [[[
+              const role = entity.attributes.fn_nas_dashboard_role;
+              if (role === 'power_on') return 'mdi:play';
+              if (role === 'power_off') return 'mdi:circle-outline';
+              return 'mdi:restart';
+            ]]]
+          tap_action:
+            action: call-service
+            service: button.press
+            service_data:
+              entity_id: |
+                [[[
+                  return entity.entity_id;
+                ]]]
+          hold_action:
+            action: none
+          styles:
+            card:
+              - width: 26px
+              - height: 26px
+              - padding: 0
+              - border: none
+              - border-radius: 5px
+              - background: transparent
+              - box-shadow: none
+            grid:
+              - grid-template-areas: '"i"'
+              - grid-template-columns: 1fr
+              - grid-template-rows: 1fr
+            img_cell:
+              - width: 26px
+              - height: 26px
+            icon:
+              - width: 19px
+              - color: |
+                  [[[
+                    const role = entity.attributes.fn_nas_dashboard_role;
+                    if (role === 'power_on') return '#3bc48d';
+                    if (role === 'power_off') return '#ef6b68';
+                    return '#e7a94b';
+                  ]]]
     styles:
       card:
         - height: 42px
@@ -471,21 +518,13 @@ button_card_templates:
         - background: rgba(255, 255, 255, 0.035)
         - box-shadow: none
       grid:
-        - grid-template-areas: '"i n"'
+        - grid-template-areas: '"action n"'
         - grid-template-columns: 26px 1fr
         - column-gap: 5px
-      img_cell:
-        - width: 24px
-        - height: 24px
-      icon:
-        - width: 19px
-        - color: |
-            [[[
-              const role = entity.attributes.fn_nas_dashboard_role;
-              if (role === 'power_on') return '#3bc48d';
-              if (role === 'power_off') return '#ef6b68';
-              return '#e7a94b';
-            ]]]
+      custom_fields:
+        action:
+          - justify-self: center
+          - align-self: center
       name:
         - justify-self: start
         - color: "#f4f7f8"

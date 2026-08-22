@@ -124,10 +124,15 @@ class DashboardVerifications(VerifyCase):
         vm_action = templates.split("  fn_nas_vm_action:", 1)[1].split(
             "  fn_nas_image_action:", 1
         )[0]
-        self.assertIn("action: call-service", vm_action)
-        self.assertIn("service: button.press", vm_action)
-        self.assertIn("return entity.entity_id", vm_action)
-        self.assertIn("hold_action:\n      action: more-info", vm_action)
+        self.assertIn("tap_action:\n      action: more-info", vm_action)
+        self.assertIn("custom_fields:\n      action:", vm_action)
+        nested_action = vm_action.split("    custom_fields:", 1)[1].split(
+            "    styles:", 1
+        )[0]
+        self.assertIn("action: call-service", nested_action)
+        self.assertIn("service: button.press", nested_action)
+        self.assertIn("return entity.entity_id", nested_action)
+        self.assertIn("grid-template-areas: '\"action n\"'", vm_action)
 
     def verify_dashboard_uses_graphical_storage_disk_and_fan_views(self):
         view = DASHBOARD_VIEW_PATH.read_text(encoding="utf-8")
