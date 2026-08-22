@@ -404,6 +404,78 @@ class FanManager:
                 break
         return services
 
+    def parse_fan_service_details(self, output: str) -> dict[str, dict]:
+        """Parse bounded systemd properties for detected fan services."""
+        property_names = {
+            "LoadState": "load_state",
+            "ActiveState": "active_state",
+            "SubState": "sub_state",
+            "UnitFileState": "unit_file_state",
+            "FragmentPath": "fragment_path",
+            "MainPID": "main_pid",
+            "ExecMainStatus": "exec_main_status",
+            "ExecStart": "exec_start",
+            "ProcessExe": "process_exe",
+        }
+        numeric_properties = {"MainPID", "ExecMainStatus"}
+        details = {}
+
+        for line in output.splitlines():
+            if not line.startswith("serviceprop\t"):
+                continue
+            parts = (line.split("\t", 3) + ["", "", "", ""])[:4]
+            _record_type, service, property_name, value = parts
+            key = property_names.get(property_name)
+            if not service or not key:
+                continue
+            parsed_value = (
+                self._to_int(value)
+                if property_name in numeric_properties
+                else value.strip()[:240]
+            )
+            if parsed_value is None or parsed_value == "":
+                continue
+            details.setdefault(service[:120], {})[key] = parsed_value
+
+        return details
+
+    def parse_vendor_fan_interfaces(self, output: str) -> list[dict]:
+        """Parse presence and permissions of known UGREEN fan interfaces."""
+        interfaces = []
+        for line in output.splitlines():
+            if not line.startswith("vendor\t"):
+                continue
+            parts = (line.split("\t") + ["", "", "", "", ""])[:5]
+            _record_type, path, interface_type, readable, writable = parts
+            if not path:
+                continue
+            interfaces.append(
+                {
+                    "path": path[:200],
+                    "type": interface_type[:40],
+                    "readable": readable == "1",
+                    "writable": writable == "1",
+                }
+            )
+            if len(interfaces) >= 20:
+                break
+        return interfaces
+
+    def parse_fan_service_logs(self, output: str) -> list[str]:
+        """Parse recent, bounded log messages from the stock fan service."""
+        logs = []
+        for line in output.splitlines():
+            if not line.startswith("servicelog\t"):
+                continue
+            parts = (line.split("\t", 2) + ["", "", ""])[:3]
+            _record_type, _service, message = parts
+            message = message.strip()
+            if message:
+                logs.append(message[:240])
+            if len(logs) >= 20:
+                break
+        return logs
+
     def parse_fan_control_app(self, output: str) -> dict:
         """Parse the optional fnOS fan-control FPK availability."""
         app = {
@@ -704,7 +776,7 @@ for key in sys_vendor product_name product_version board_vendor board_name board
     [ -n "$value" ] && printf "host\t%s\t%s\n" "$key" "$value"
 done
 
-candidate_modules="it87 nct6775 nct6683 f71882fg w83627ehf w83627hf sch5627 sch5636 coretemp asus_ec_sensors asus_wmi_sensors gigabyte_wmi dell_smm_hwmon thinkpad_acpi"
+candidate_modules="it87 nct6775 nct6683 f71882fg w83627ehf w83627hf sch5627 sch5636 coretemp asus_ec_sensors asus_wmi_sensors gigabyte_wmi dell_smm_hwmon thinkpad_acpi ug_it86x_cpufan ug_it86x_sio"
 if command -v lsmod >/dev/null 2>&1; then
     for module in $candidate_modules; do
         if lsmod 2>/dev/null | awk 'NR > 1 {print $1}' | grep -qx "$module"; then
@@ -729,7 +801,45 @@ if command -v systemctl >/dev/null 2>&1; then
         | while IFS= read -r service; do
             [ -n "$service" ] && printf "service\t%s\n" "$service"
         done
+
+    service_name="pwm-fancontrol.service"
+    load_state="$(systemctl show "$service_name" --property=LoadState --value 2>/dev/null | awk 'NR == 1 {print $1}')"
+    if [ -n "$load_state" ] && [ "$load_state" != "not-found" ]; then
+        printf "service\t%s\n" "$service_name"
+        for property in LoadState ActiveState SubState UnitFileState FragmentPath MainPID ExecMainStatus ExecStart; do
+            value="$(systemctl show "$service_name" --property="$property" --value 2>/dev/null | sanitize_value)"
+            [ -n "$value" ] && printf "serviceprop\t%s\t%s\t%s\n" "$service_name" "$property" "$value"
+        done
+
+        main_pid="$(systemctl show "$service_name" --property=MainPID --value 2>/dev/null | tr -cd '0-9')"
+        if [ -n "$main_pid" ] && [ "$main_pid" != "0" ]; then
+            process_exe="$(readlink -f "/proc/$main_pid/exe" 2>/dev/null | sanitize_value)"
+            [ -n "$process_exe" ] && printf "serviceprop\t%s\tProcessExe\t%s\n" "$service_name" "$process_exe"
+        fi
+
+        if command -v journalctl >/dev/null 2>&1; then
+            journalctl -b -u "$service_name" -n 40 --no-pager -o cat 2>/dev/null \
+                | grep -Ei '(fan|pwm|it86|hwmon|error|fail|start|stop|module|driver)' \
+                | tail -n 20 \
+                | while IFS= read -r message; do
+                    message="$(printf "%s" "$message" | sanitize_value)"
+                    [ -n "$message" ] && printf "servicelog\t%s\t%s\n" "$service_name" "$message"
+                done
+        fi
+    fi
 fi
+
+for path in /proc/it86 /proc/it86/fan /proc/it86/startup /sys/module/ug_it86x_cpufan /sys/module/ug_it86x_sio; do
+    [ -e "$path" ] || continue
+    interface_type="other"
+    [ -d "$path" ] && interface_type="directory"
+    [ -f "$path" ] && interface_type="file"
+    readable=0
+    writable=0
+    [ -r "$path" ] && readable=1
+    [ -w "$path" ] && writable=1
+    printf "vendor\t%s\t%s\t%s\t%s\n" "$path" "$interface_type" "$readable" "$writable"
+done
 
 app_installed=0
 [ -d /var/apps/fan-control ] && app_installed=1
@@ -830,6 +940,9 @@ fi
             "loaded_fan_modules": [],
             "available_fan_modules": [],
             "fan_services": [],
+            "fan_service_details": {},
+            "vendor_fan_interfaces": [],
+            "fan_service_logs": [],
             "fan_control_app": {
                 "installed": False,
                 "listening": False,
@@ -859,6 +972,9 @@ fi
         loaded_modules = self.parse_driver_modules(inventory_output, "loaded")
         available_modules = self.parse_driver_modules(inventory_output, "available")
         fan_services = self.parse_fan_services(inventory_output)
+        fan_service_details = self.parse_fan_service_details(inventory_output)
+        vendor_interfaces = self.parse_vendor_fan_interfaces(inventory_output)
+        fan_service_logs = self.parse_fan_service_logs(inventory_output)
         fan_control_app = self.parse_fan_control_app(inventory_output)
         diagnostic_tools = self.parse_diagnostic_tools(inventory_output)
 
@@ -868,6 +984,11 @@ fi
                 "没有在标准 hwmon、sensors、sensors -u 或直接 /sys 扫描中发现风扇转速；"
                 "请查看主机硬件、已加载风扇模块、可用风扇模块和风扇控制应用。"
             )
+            if "pwm-fancontrol.service" in fan_service_details:
+                hint = (
+                    "检测到 pwm-fancontrol.service，但它没有向标准 hwmon 暴露风扇；"
+                    "请查看风扇服务详情、厂商风扇接口和风扇服务日志。"
+                )
         if error:
             hint = f"扫描命令异常: {error}"
 
@@ -890,6 +1011,9 @@ fi
             "loaded_fan_modules": loaded_modules,
             "available_fan_modules": available_modules,
             "fan_services": fan_services,
+            "fan_service_details": fan_service_details,
+            "vendor_fan_interfaces": vendor_interfaces,
+            "fan_service_logs": fan_service_logs,
             "fan_control_app": fan_control_app,
             "diagnostic_tools": diagnostic_tools,
             "hint": hint,

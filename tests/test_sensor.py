@@ -77,6 +77,23 @@ class StubCoordinator:
             "loaded_fan_modules": ["coretemp"],
             "available_fan_modules": ["nct6775"],
             "fan_services": ["thermal-daemon.service"],
+            "fan_service_details": {
+                "pwm-fancontrol.service": {
+                    "active_state": "active",
+                    "sub_state": "running",
+                    "exec_start": "/usr/sbin/hwmonitor-480t",
+                    "process_exe": "/usr/sbin/hwmonitor-480t",
+                }
+            },
+            "vendor_fan_interfaces": [
+                {
+                    "path": "/proc/it86/fan",
+                    "type": "file",
+                    "readable": True,
+                    "writable": True,
+                }
+            ],
+            "fan_service_logs": ["Started PWM fan control."],
             "fan_control_app": {
                 "installed": False,
                 "listening": False,
@@ -170,6 +187,15 @@ class FanDiscoverySensorTests(unittest.TestCase):
         self.assertEqual(entity.extra_state_attributes["已加载风扇模块"], ["coretemp"])
         self.assertEqual(entity.extra_state_attributes["可用风扇模块"], ["nct6775"])
         self.assertEqual(entity.extra_state_attributes["相关服务"], ["thermal-daemon.service"])
+        self.assertEqual(
+            entity.extra_state_attributes["风扇服务详情"]["pwm-fancontrol.service"]["active_state"],
+            "active",
+        )
+        self.assertEqual(
+            entity.extra_state_attributes["厂商风扇接口"][0]["path"],
+            "/proc/it86/fan",
+        )
+        self.assertEqual(entity.extra_state_attributes["风扇服务日志"], ["Started PWM fan control."])
         self.assertFalse(entity.extra_state_attributes["风扇控制应用"]["installed"])
         self.assertEqual(entity.extra_state_attributes["诊断工具"], {"sensors-detect": True})
 

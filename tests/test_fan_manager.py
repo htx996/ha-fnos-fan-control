@@ -150,8 +150,22 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
                 "host\tboard_vendor\tExample Board Vendor",
                 "host\tboard_name\tN100-NAS",
                 "module\tloaded\tcoretemp",
+                "module\tloaded\tug_it86x_cpufan",
                 "module\tavailable\tnct6775",
                 "service\tthermal-daemon.service",
+                "service\tpwm-fancontrol.service",
+                "serviceprop\tpwm-fancontrol.service\tLoadState\tloaded",
+                "serviceprop\tpwm-fancontrol.service\tActiveState\tactive",
+                "serviceprop\tpwm-fancontrol.service\tSubState\trunning",
+                "serviceprop\tpwm-fancontrol.service\tUnitFileState\tenabled",
+                "serviceprop\tpwm-fancontrol.service\tFragmentPath\t/usr/lib/systemd/system/pwm-fancontrol.service",
+                "serviceprop\tpwm-fancontrol.service\tMainPID\t3241",
+                "serviceprop\tpwm-fancontrol.service\tExecMainStatus\t0",
+                "serviceprop\tpwm-fancontrol.service\tExecStart\t/usr/sbin/hwmonitor-480t",
+                "serviceprop\tpwm-fancontrol.service\tProcessExe\t/usr/sbin/hwmonitor-480t",
+                "vendor\t/proc/it86\tdirectory\t1\t1",
+                "vendor\t/proc/it86/fan\tfile\t1\t1",
+                "servicelog\tpwm-fancontrol.service\tStarted PWM fan control.",
                 "app\tfan-control\t1\t1\t9511",
                 'api\t9511\t{"auth_enabled": true, "authenticated": false}',
                 "tool\tsensors-detect\t1",
@@ -171,9 +185,50 @@ class FanManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(diagnostics["host_hardware"]["kernel"], "6.12.18-trim")
         self.assertEqual(diagnostics["host_hardware"]["product_name"], "NAS Mini")
         self.assertEqual(diagnostics["host_hardware"]["board_name"], "N100-NAS")
-        self.assertEqual(diagnostics["loaded_fan_modules"], ["coretemp"])
+        self.assertEqual(
+            diagnostics["loaded_fan_modules"],
+            ["coretemp", "ug_it86x_cpufan"],
+        )
         self.assertEqual(diagnostics["available_fan_modules"], ["nct6775"])
-        self.assertEqual(diagnostics["fan_services"], ["thermal-daemon.service"])
+        self.assertEqual(
+            diagnostics["fan_services"],
+            ["thermal-daemon.service", "pwm-fancontrol.service"],
+        )
+        self.assertEqual(
+            diagnostics["fan_service_details"]["pwm-fancontrol.service"],
+            {
+                "load_state": "loaded",
+                "active_state": "active",
+                "sub_state": "running",
+                "unit_file_state": "enabled",
+                "fragment_path": "/usr/lib/systemd/system/pwm-fancontrol.service",
+                "main_pid": 3241,
+                "exec_main_status": 0,
+                "exec_start": "/usr/sbin/hwmonitor-480t",
+                "process_exe": "/usr/sbin/hwmonitor-480t",
+            },
+        )
+        self.assertEqual(
+            diagnostics["vendor_fan_interfaces"],
+            [
+                {
+                    "path": "/proc/it86",
+                    "type": "directory",
+                    "readable": True,
+                    "writable": True,
+                },
+                {
+                    "path": "/proc/it86/fan",
+                    "type": "file",
+                    "readable": True,
+                    "writable": True,
+                },
+            ],
+        )
+        self.assertEqual(
+            diagnostics["fan_service_logs"],
+            ["Started PWM fan control."],
+        )
         self.assertEqual(
             diagnostics["fan_control_app"],
             {
