@@ -95,6 +95,22 @@ https://github.com/htx996/ha-fnos-fan-control
 
 页面组织参考了 [`Tom-Bom-badil/home-assistant_ugreen-nas`](https://github.com/Tom-Bom-badil/home-assistant_ugreen-nas) 的动态仪表盘思路：集成向实体附加稳定分类，Lovelace 再按分类生成概览、汇总和详情。当前实现使用原创 YAML 和本仓库图片，并改为最多两栏布局，避免参考页面固定高度、固定卡片列数在 Pad 和手机上的适配限制。
 
+### 其他用户如何使用
+
+这套仪表盘可以用于其他 Home Assistant 实例，但不会随 HACS 集成自动创建。建议新建一个独立仪表盘后再导入，避免覆盖已有页面。
+
+1. 通过 HACS 安装“飞牛NAS”集成并重启 Home Assistant。
+2. 在 HACS 的“前端”分类安装下方列出的四个前端卡片。
+3. 将 [`dashboard/button_card_templates.yaml`](dashboard/button_card_templates.yaml) 合并到目标仪表盘的原始配置，再将 [`dashboard/fn_nas_view.yaml`](dashboard/fn_nas_view.yaml) 导入一个空白视图。
+4. 刷新浏览器；如果前端卡片或图片仍未加载，再重启一次 Home Assistant。
+
+系统信息、存储卷、硬盘、风扇和 UPS 会根据当前 `fn_nas` 实体自动生成。使用时还需要注意：
+
+* NAS 机型图片当前固定为 DXP4800 Pro，其他机型也会显示这张图片。
+* Homeassistant、iStoreOS 和 Windows 10 虚拟机卡片按名称匹配；虚拟机名称不同，需要修改视图 YAML 中对应的名称。
+* HACS 不会修改用户的 Lovelace 配置。后续版本更新页面结构后，需要重新合并卡片模板并替换视图 YAML。
+* 页面会汇总当前 Home Assistant 中所有已配置的 `fn_nas` 集成条目。
+
 ### 准备前端卡片
 
 先在 HACS 的“前端”分类安装并启用：
@@ -125,7 +141,7 @@ https://github.com/htx996/ha-fnos-fan-control
 2. 打开该视图的“以 YAML 编辑”。
 3. 删除自动生成的视图内容，粘贴 [`dashboard/fn_nas_view.yaml`](dashboard/fn_nas_view.yaml) 的全部内容并保存。
 
-主页面上的电源、重启、风扇和容器控制默认只打开实体详情，不会单击后立即执行高风险操作。当前页面会汇总所有已配置的 `fn_nas` 集成条目。
+主页面上的 NAS、虚拟机和容器开机、关机、重启、启动或停止操作都会先显示确认弹窗；选择“取消”不会发送控制命令。虚拟机操作卡片的空白区域仍可打开对应实体详情。
 
 HACS 不会自动修改用户的 Lovelace 仪表盘。后续版本如果更新了页面结构，需要重新合并模板并替换视图 YAML；建议先备份自己对页面做过的调整。
 
