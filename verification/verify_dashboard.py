@@ -119,6 +119,8 @@ class DashboardVerifications(VerifyCase):
         for category in ("system", "storage", "disk", "fan", "ups", "vm", "docker", "control"):
             self.assertIn(f"fn_nas_dashboard_category: {category}", view)
         self.assertIn("fn_nas_metric", templates)
+        self.assertIn("fn_nas_vm_system", templates)
+        self.assertIn("fn_nas_vm_action", templates)
 
     def verify_dashboard_uses_graphical_storage_disk_and_fan_views(self):
         view = DASHBOARD_VIEW_PATH.read_text(encoding="utf-8")
@@ -167,6 +169,15 @@ class DashboardVerifications(VerifyCase):
             self.assertIn(f"min-height: {height}", templates)
         self.assertIn("rows: 4", view)
         self.assertEqual(view.count("height: 64"), 2)
+        self.assertEqual(view.count("type: custom:mod-card"), 3)
+        self.assertIn("icon: mdi:home-assistant", view)
+        self.assertIn("icon: mdi:microsoft-windows", view)
+        self.assertIn("/local/community/fn_nas/istoreos.png?v=138", view)
+        for system in ("Homeassistant", "iStoreOS", "Windows 10"):
+            self.assertIn(f"name: {system} 状态", view)
+            self.assertIn(f"name: {system} 开机", view)
+            self.assertIn(f"name: {system} 关机", view)
+            self.assertNotIn(f"name: {system} 重启", view)
 
     def verify_readme_documents_manual_dashboard_installation(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

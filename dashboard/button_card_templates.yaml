@@ -378,6 +378,111 @@ button_card_templates:
       state:
         - font-size: 16px
 
+  fn_nas_vm_system:
+    show_icon: true
+    show_name: true
+    show_state: true
+    tap_action:
+      action: more-info
+    hold_action:
+      action: none
+    name: |
+      [[[
+        return (entity.attributes.friendly_name || entity.entity_id)
+          .replace(/\s*状态$/, '');
+      ]]]
+    styles:
+      card:
+        - min-height: 70px
+        - padding: 8px 10px
+        - border-radius: 0
+        - background: transparent
+        - border: none
+        - box-shadow: none
+      grid:
+        - grid-template-areas: '"i n" "i s"'
+        - grid-template-columns: 54px 1fr
+        - grid-template-rows: 28px 24px
+        - column-gap: 10px
+      img_cell:
+        - width: 48px
+        - height: 48px
+        - border-radius: 8px
+        - background: |
+            [[[
+              return variables.brand_background || 'rgba(119, 169, 255, 0.12)';
+            ]]]
+      icon:
+        - width: 32px
+        - color: |
+            [[[
+              return variables.brand_color || '#77a9ff';
+            ]]]
+      entity_picture:
+        - width: 44px
+        - max-height: 34px
+        - object-fit: contain
+      name:
+        - justify-self: start
+        - align-self: end
+        - color: "#f4f7f8"
+        - font-size: 17px
+        - font-weight: 650
+      state:
+        - justify-self: start
+        - align-self: start
+        - color: |
+            [[[
+              const state = String(entity.state || '').toLowerCase();
+              return ['running', 'on', '运行中', '开启'].includes(state)
+                ? '#3bc48d'
+                : '#aebbc2';
+            ]]]
+        - font-size: 13px
+        - font-weight: 600
+
+  fn_nas_vm_action:
+    show_icon: true
+    show_name: true
+    show_state: false
+    tap_action:
+      action: more-info
+    hold_action:
+      action: none
+    name: |
+      [[[
+        const role = entity.attributes.fn_nas_dashboard_role;
+        return role === 'power_on' ? '开机' : '关机';
+      ]]]
+    styles:
+      card:
+        - height: 42px
+        - padding: 0 12px
+        - border-radius: 6px
+        - border: 1px solid rgba(174, 187, 194, 0.10)
+        - background: rgba(255, 255, 255, 0.035)
+        - box-shadow: none
+      grid:
+        - grid-template-areas: '"i n"'
+        - grid-template-columns: 26px 1fr
+        - column-gap: 5px
+      img_cell:
+        - width: 24px
+        - height: 24px
+      icon:
+        - width: 19px
+        - color: |
+            [[[
+              return entity.attributes.fn_nas_dashboard_role === 'power_on'
+                ? '#3bc48d'
+                : '#ef6b68';
+            ]]]
+      name:
+        - justify-self: start
+        - color: "#f4f7f8"
+        - font-size: 13px
+        - font-weight: 600
+
   fn_nas_image_action:
     show_icon: true
     show_name: false

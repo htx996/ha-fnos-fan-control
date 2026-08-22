@@ -460,6 +460,202 @@ sections:
           columns: 12
           rows: 1
 
+      - type: grid
+        columns: 1
+        square: false
+        cards:
+          - type: custom:mod-card
+            card_mod:
+              style: |
+                ha-card {
+                  padding: 7px;
+                  border: 1px solid rgba(119, 169, 255, 0.14);
+                  border-radius: 8px;
+                  background: #172126;
+                  box-shadow: none;
+                }
+            card:
+              type: vertical-stack
+              cards:
+                - type: custom:auto-entities
+                  show_empty: false
+                  card:
+                    type: grid
+                    columns: 1
+                    square: false
+                  card_param: cards
+                  filter:
+                    include:
+                      - integration: fn_nas
+                        domain: sensor
+                        name: Homeassistant 状态
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: status
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_system
+                          icon: mdi:home-assistant
+                          variables:
+                            brand_color: "#41bdf5"
+                            brand_background: rgba(65, 189, 245, 0.12)
+                - type: custom:auto-entities
+                  show_empty: false
+                  card:
+                    type: grid
+                    columns: 2
+                    square: false
+                  card_param: cards
+                  filter:
+                    include:
+                      - integration: fn_nas
+                        domain: button
+                        name: Homeassistant 开机
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: power_on
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_action
+                      - integration: fn_nas
+                        domain: button
+                        name: Homeassistant 关机
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: power_off
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_action
+
+          - type: custom:mod-card
+            card_mod:
+              style: |
+                ha-card {
+                  padding: 7px;
+                  border: 1px solid rgba(11, 99, 246, 0.18);
+                  border-radius: 8px;
+                  background: #172126;
+                  box-shadow: none;
+                }
+            card:
+              type: vertical-stack
+              cards:
+                - type: custom:auto-entities
+                  show_empty: false
+                  card:
+                    type: grid
+                    columns: 1
+                    square: false
+                  card_param: cards
+                  filter:
+                    include:
+                      - integration: fn_nas
+                        domain: sensor
+                        name: iStoreOS 状态
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: status
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_system
+                          show_entity_picture: true
+                          entity_picture: /local/community/fn_nas/istoreos.png?v=138
+                          variables:
+                            brand_color: "#0b63f6"
+                            brand_background: rgba(11, 99, 246, 0.14)
+                - type: custom:auto-entities
+                  show_empty: false
+                  card:
+                    type: grid
+                    columns: 2
+                    square: false
+                  card_param: cards
+                  filter:
+                    include:
+                      - integration: fn_nas
+                        domain: button
+                        name: iStoreOS 开机
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: power_on
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_action
+                      - integration: fn_nas
+                        domain: button
+                        name: iStoreOS 关机
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: power_off
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_action
+
+          - type: custom:mod-card
+            card_mod:
+              style: |
+                ha-card {
+                  padding: 7px;
+                  border: 1px solid rgba(0, 120, 212, 0.18);
+                  border-radius: 8px;
+                  background: #172126;
+                  box-shadow: none;
+                }
+            card:
+              type: vertical-stack
+              cards:
+                - type: custom:auto-entities
+                  show_empty: false
+                  card:
+                    type: grid
+                    columns: 1
+                    square: false
+                  card_param: cards
+                  filter:
+                    include:
+                      - integration: fn_nas
+                        domain: sensor
+                        name: Windows 10 状态
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: status
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_system
+                          icon: mdi:microsoft-windows
+                          variables:
+                            brand_color: "#45a7f5"
+                            brand_background: rgba(0, 120, 212, 0.14)
+                - type: custom:auto-entities
+                  show_empty: false
+                  card:
+                    type: grid
+                    columns: 2
+                    square: false
+                  card_param: cards
+                  filter:
+                    include:
+                      - integration: fn_nas
+                        domain: button
+                        name: Windows 10 开机
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: power_on
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_action
+                      - integration: fn_nas
+                        domain: button
+                        name: Windows 10 关机
+                        attributes:
+                          fn_nas_dashboard_category: vm
+                          fn_nas_dashboard_role: power_off
+                        options:
+                          type: custom:button-card
+                          template: fn_nas_vm_action
+        grid_options:
+          columns: 12
+
       - type: custom:auto-entities
         show_empty: false
         card:
@@ -471,7 +667,15 @@ sections:
           include:
             - integration: fn_nas
               attributes:
-                fn_nas_dashboard_category: vm
+                fn_nas_dashboard_category: docker
+                fn_nas_dashboard_role: status
+              options:
+                type: custom:button-card
+                template: fn_nas_control
+            - integration: fn_nas
+              attributes:
+                fn_nas_dashboard_category: docker
+                fn_nas_dashboard_role: power_on
               options:
                 type: custom:button-card
                 template: fn_nas_control
@@ -480,6 +684,7 @@ sections:
             - integration: fn_nas
               attributes:
                 fn_nas_dashboard_category: docker
+                fn_nas_dashboard_role: power_off
               options:
                 type: custom:button-card
                 template: fn_nas_control

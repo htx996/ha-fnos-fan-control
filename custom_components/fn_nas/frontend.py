@@ -4,7 +4,7 @@ from pathlib import Path
 import shutil
 
 
-DASHBOARD_ASSET_FILES = ("fn_nas.png",)
+DASHBOARD_ASSET_FILES = ("fn_nas.png", "istoreos.png")
 
 
 def copy_dashboard_assets(source: Path, target: Path) -> list[str]:
