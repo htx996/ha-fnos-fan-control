@@ -190,6 +190,9 @@ class DashboardVerifications(VerifyCase):
         self.assertIn("rows: 5", view)
         self.assertEqual(view.count("height: 64"), 2)
         self.assertEqual(view.count("type: custom:mod-card"), 3)
+        vm_section = view.split("heading: 虚拟机与容器", 1)[1]
+        self.assertNotIn("background: #172126", vm_section)
+        self.assertNotIn("border: 1px solid rgba(", vm_section)
         self.assertIn("icon: mdi:home-assistant", view)
         self.assertIn("icon: mdi:microsoft-windows", view)
         self.assertIn("/local/community/fn_nas/istoreos.png?v=138", view)

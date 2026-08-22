@@ -465,10 +465,10 @@ sections:
             card_mod:
               style: |
                 ha-card {
-                  padding: 7px;
-                  border: 1px solid rgba(119, 169, 255, 0.14);
-                  border-radius: 8px;
-                  background: #172126;
+                  padding: 0;
+                  border: none;
+                  border-radius: 0;
+                  background: transparent;
                   box-shadow: none;
                 }
             card:
@@ -537,10 +537,10 @@ sections:
             card_mod:
               style: |
                 ha-card {
-                  padding: 7px;
-                  border: 1px solid rgba(11, 99, 246, 0.18);
-                  border-radius: 8px;
-                  background: #172126;
+                  padding: 0;
+                  border: none;
+                  border-radius: 0;
+                  background: transparent;
                   box-shadow: none;
                 }
             card:
@@ -610,10 +610,10 @@ sections:
             card_mod:
               style: |
                 ha-card {
-                  padding: 7px;
-                  border: 1px solid rgba(0, 120, 212, 0.18);
-                  border-radius: 8px;
-                  background: #172126;
+                  padding: 0;
+                  border: none;
+                  border-radius: 0;
+                  background: transparent;
                   box-shadow: none;
                 }
             card:
