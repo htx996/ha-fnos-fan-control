@@ -66,70 +66,78 @@ sections:
       - type: custom:auto-entities
         show_empty: false
         card:
-          type: grid
-          columns: 2
-          square: false
-        card_param: cards
+          type: custom:mini-graph-card
+          hours_to_show: 24
+          points_per_hour: 4
+          line_width: 3
+          height: 90
+          show:
+            icon: true
+            extrema: true
+            fill: fade
+          color_thresholds:
+            - value: 35
+              color: "#44c7d9"
+            - value: 55
+              color: "#e7c64f"
+            - value: 70
+              color: "#ef6b68"
+          card_mod:
+            style: |
+              ha-card {
+                border-radius: 6px;
+                background: #182126;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                box-shadow: none;
+                color: #f4f7f8;
+                --primary-text-color: #f4f7f8;
+                --secondary-text-color: #aebbc2;
+              }
+        card_param: entities
         filter:
           include:
             - integration: fn_nas
               domain: sensor
               attributes:
                 fn_nas_dashboard_role: cpu_temperature
-              options:
-                type: custom:mini-graph-card
-                hours_to_show: 24
-                points_per_hour: 4
-                line_width: 3
-                height: 90
-                show:
-                  icon: true
-                  extrema: true
-                  fill: fade
-                color_thresholds:
-                  - value: 35
-                    color: "#44c7d9"
-                  - value: 55
-                    color: "#e7c64f"
-                  - value: 70
-                    color: "#ef6b68"
-                card_mod:
-                  style: |
-                    ha-card {
-                      border-radius: 6px;
-                      background: #182126;
-                      border: 1px solid rgba(255, 255, 255, 0.12);
-                      box-shadow: none;
-                    }
+
+      - type: custom:auto-entities
+        show_empty: false
+        card:
+          type: custom:mini-graph-card
+          hours_to_show: 24
+          points_per_hour: 4
+          line_width: 3
+          height: 90
+          show:
+            icon: true
+            extrema: true
+            fill: fade
+          color_thresholds:
+            - value: 30
+              color: "#3bc48d"
+            - value: 50
+              color: "#e7c64f"
+            - value: 65
+              color: "#ef6b68"
+          card_mod:
+            style: |
+              ha-card {
+                border-radius: 6px;
+                background: #182126;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                box-shadow: none;
+                color: #f4f7f8;
+                --primary-text-color: #f4f7f8;
+                --secondary-text-color: #aebbc2;
+              }
+        card_param: entities
+        filter:
+          include:
             - integration: fn_nas
               domain: sensor
               attributes:
                 fn_nas_dashboard_role: motherboard_temperature
-              options:
-                type: custom:mini-graph-card
-                hours_to_show: 24
-                points_per_hour: 4
-                line_width: 3
-                height: 90
-                show:
-                  icon: true
-                  extrema: true
-                  fill: fade
-                color_thresholds:
-                  - value: 30
-                    color: "#3bc48d"
-                  - value: 50
-                    color: "#e7c64f"
-                  - value: 65
-                    color: "#ef6b68"
-                card_mod:
-                  style: |
-                    ha-card {
-                      border-radius: 6px;
-                      background: #182126;
-                      border: 1px solid rgba(255, 255, 255, 0.12);
-                      box-shadow: none;
-                    }
 
   - type: grid
     cards:
