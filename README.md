@@ -95,7 +95,7 @@ https://github.com/htx996/ha-fnos-fan-control
 
 页面组织参考了 [`Tom-Bom-badil/home-assistant_ugreen-nas`](https://github.com/Tom-Bom-badil/home-assistant_ugreen-nas) 的动态仪表盘思路：集成向实体附加稳定分类，Lovelace 再按分类生成概览、汇总和详情。当前实现使用原创 YAML 和本仓库图片，并改为最多两栏布局，避免参考页面固定高度、固定卡片列数在 Pad 和手机上的适配限制。
 
-### 其他用户如何使用
+##如何使用
 
 这套仪表盘可以用于其他 Home Assistant 实例，但不会随 HACS 集成自动创建。建议新建一个独立仪表盘后再导入，避免覆盖已有页面。
 
