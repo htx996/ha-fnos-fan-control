@@ -89,6 +89,11 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
         )
         existing_ids.add(system_uid)
 
+    device_name_uid = f"{config_entry.entry_id}_device_name"
+    if device_name_uid not in existing_ids:
+        entities.append(DeviceNameSensor(coordinator, device_name_uid))
+        existing_ids.add(device_name_uid)
+
     os_version_uid = f"{config_entry.entry_id}_os_version"
     if os_version_uid not in existing_ids:
         entities.append(OSVersionSensor(coordinator, os_version_uid))
@@ -472,10 +477,39 @@ class SystemSensor(CoordinatorEntity, SensorEntity):
         }
 
 
+class DeviceNameSensor(CoordinatorEntity, SensorEntity):
+    def __init__(self, coordinator, unique_id):
+        super().__init__(coordinator)
+        self._attr_name = "设备名称"
+        self._attr_unique_id = unique_id
+        self._attr_icon = "mdi:nas"
+        self._attr_device_info = {
+            "identifiers": {(DOMAIN, DEVICE_ID_NAS)},
+            "name": "飞牛NAS系统监控",
+            "manufacturer": "飞牛",
+        }
+        self._dashboard_attributes = dashboard_metadata("system", "device_name", 12)
+
+    @property
+    def native_value(self):
+        system_data = self.coordinator.data.get("system", {})
+        if system_data.get("status") == "off":
+            return None
+        value = system_data.get("device_name", "未知")
+        return None if value == "未知" else value
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            **self._dashboard_attributes,
+            "主机地址": self.coordinator.host,
+        }
+
+
 class OSVersionSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator, unique_id):
         super().__init__(coordinator)
-        self._attr_name = "操作系统版本"
+        self._attr_name = "系统版本"
         self._attr_unique_id = unique_id
         self._attr_icon = "mdi:linux"
         self._attr_device_info = {
@@ -490,15 +524,17 @@ class OSVersionSensor(CoordinatorEntity, SensorEntity):
         system_data = self.coordinator.data.get("system", {})
         if system_data.get("status") == "off":
             return None
-        value = system_data.get("operating_system", "未知")
-        return None if value == "未知" else value
+        value = system_data.get("fnos_version", "未知")
+        return "fnOS" if value == "未知" else f"fnOS {value}"
 
     @property
     def extra_state_attributes(self):
         system_data = self.coordinator.data.get("system", {})
         return {
             **self._dashboard_attributes,
-            "版本": system_data.get("os_version", "未知"),
+            "fnOS版本": system_data.get("fnos_version", "未知"),
+            "基础系统": system_data.get("operating_system", "未知"),
+            "基础系统版本": system_data.get("os_version", "未知"),
             "内核版本": system_data.get("kernel_version", "未知"),
         }
 

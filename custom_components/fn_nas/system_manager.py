@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import re
 from datetime import datetime
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,6 +76,8 @@ class SystemManager:
             return {
                 "uptime_seconds": 0,
                 "uptime": "未知",
+                "device_name": "未知",
+                "fnos_version": "未知",
                 "operating_system": "未知",
                 "os_version": "未知",
                 "kernel_version": "未知",
@@ -93,7 +96,10 @@ class SystemManager:
 
         output = await self.coordinator.run_command(
             "cat /etc/os-release 2>/dev/null || true; "
-            "printf '\\n__FN_NAS_KERNEL__=%s\\n' \"$(uname -r 2>/dev/null)\""
+            "printf '\\n__FN_NAS_KERNEL__=%s\\n' \"$(uname -r 2>/dev/null)\"; "
+            "printf '__FN_NAS_DEVICE_NAME__=%s\\n' \"$(hostname 2>/dev/null)\"; "
+            "printf '__FN_NAS_VERSION__=%s\\n' "
+            "\"$(dpkg-query -W -f='${Version}' trim 2>/dev/null)\""
         )
         os_info = self.parse_os_info(output)
         if any(value != "未知" for value in os_info.values()):
@@ -102,14 +108,24 @@ class SystemManager:
 
     @staticmethod
     def parse_os_info(output: str) -> dict:
-        """Parse /etc/os-release plus the appended kernel marker."""
+        """Parse fnOS identity markers and the underlying Linux release."""
         fields = {}
         kernel_version = "未知"
+        device_name = "未知"
+        fnos_version = "未知"
 
         for raw_line in (output or "").splitlines():
             line = raw_line.strip()
             if line.startswith("__FN_NAS_KERNEL__="):
                 kernel_version = line.split("=", 1)[1].strip() or "未知"
+                continue
+            if line.startswith("__FN_NAS_DEVICE_NAME__="):
+                device_name = line.split("=", 1)[1].strip() or "未知"
+                continue
+            if line.startswith("__FN_NAS_VERSION__="):
+                raw_version = line.split("=", 1)[1].strip()
+                version_match = re.search(r"\d+(?:\.\d+)+", raw_version)
+                fnos_version = version_match.group(0) if version_match else "未知"
                 continue
             if "=" not in line or line.startswith("#"):
                 continue
@@ -126,6 +142,8 @@ class SystemManager:
             )
 
         return {
+            "device_name": device_name,
+            "fnos_version": fnos_version,
             "operating_system": os_name or "未知",
             "os_version": fields.get("VERSION_ID") or fields.get("VERSION") or "未知",
             "kernel_version": kernel_version,

@@ -29,6 +29,8 @@ class StubCoordinator:
             'NAME="Debian GNU/Linux"\n'
             'VERSION_ID="12"\n'
             '__FN_NAS_KERNEL__=6.18.18.c952-trim\n'
+            '__FN_NAS_DEVICE_NAME__=MyNas\n'
+            '__FN_NAS_VERSION__=1.2.0401-1\n'
         )
 
 
@@ -38,8 +40,12 @@ class SystemManagerVerifications(VerifyCase):
             'PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"\n'
             'VERSION_ID="12"\n'
             '__FN_NAS_KERNEL__=6.18.18.c952-trim\n'
+            '__FN_NAS_DEVICE_NAME__=MyNas\n'
+            '__FN_NAS_VERSION__=1.2.0401-1\n'
         )
 
+        self.assertEqual(result["device_name"], "MyNas")
+        self.assertEqual(result["fnos_version"], "1.2.0401")
         self.assertEqual(result["operating_system"], "Debian GNU/Linux 12 (bookworm)")
         self.assertEqual(result["os_version"], "12")
         self.assertEqual(result["kernel_version"], "6.18.18.c952-trim")

@@ -353,6 +353,8 @@ class FanDiscoverySensorVerifications(VerifyCase):
                 data={
                     "system": {
                         "status": "on",
+                        "device_name": "MyNas",
+                        "fnos_version": "1.2.0401",
                         "operating_system": "Debian GNU/Linux 12 (bookworm)",
                         "os_version": "12",
                         "kernel_version": "6.18.18.c952-trim",
@@ -361,10 +363,43 @@ class FanDiscoverySensorVerifications(VerifyCase):
             )
             entity = module.OSVersionSensor(coordinator, "entry-1_os_version")
 
-        self.assertEqual(entity.native_value, "Debian GNU/Linux 12 (bookworm)")
-        self.assertEqual(entity.extra_state_attributes["版本"], "12")
+        self.assertEqual(entity.native_value, "fnOS 1.2.0401")
+        self.assertEqual(entity.extra_state_attributes["fnOS版本"], "1.2.0401")
+        self.assertEqual(
+            entity.extra_state_attributes["基础系统"],
+            "Debian GNU/Linux 12 (bookworm)",
+        )
+        self.assertEqual(entity.extra_state_attributes["基础系统版本"], "12")
         self.assertEqual(
             entity.extra_state_attributes["内核版本"],
             "6.18.18.c952-trim",
         )
         self.assertEqual(entity.extra_state_attributes["fn_nas_dashboard_role"], "os_version")
+
+    def verify_device_name_sensor_exposes_nas_name(self):
+        with patch_modules(sys.modules, _install_stubs()):
+            spec = importlib.util.spec_from_file_location(
+                "custom_components.fn_nas.sensor",
+                SENSOR_PATH,
+            )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules["custom_components.fn_nas.sensor"] = module
+            spec.loader.exec_module(module)
+
+            coordinator = types.SimpleNamespace(
+                host="192.168.2.86",
+                data={
+                    "system": {
+                        "status": "on",
+                        "device_name": "MyNas",
+                    }
+                },
+            )
+            entity = module.DeviceNameSensor(coordinator, "entry-1_device_name")
+
+        self.assertEqual(entity.native_value, "MyNas")
+        self.assertEqual(entity.extra_state_attributes["主机地址"], "192.168.2.86")
+        self.assertEqual(
+            entity.extra_state_attributes["fn_nas_dashboard_role"],
+            "device_name",
+        )
